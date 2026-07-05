@@ -1,0 +1,339 @@
+# PhotoBridge — Local Network Photo Browser for iPhone
+
+PhotoBridge is a local web app that runs on a Windows laptop and lets an iPhone on the same WiFi network browse the laptop's photo/video folder in an interface styled like Apple Photos. It's a Progressive Web App (PWA) with no login required — just type your folder path on the setup screen.
+
+## Features
+
+- **📱 No App Installation** — Works as a Progressive Web App (PWA) added to home screen via Safari
+- **📸 Grid View** — Date-grouped grid just like Apple Photos, with lazy loading
+- **🎥 Video Support** — Full-screen viewer with scrubbing and seeking support
+- **🔍 Search & Albums** — Filter by filename and browse by album  
+- **❤️ Favorites** — Mark favorites (stored in browser localStorage)
+- **💾 Save to Photos** — Press a button to save directly into the phone's native Photos app
+- **🔄 No Cloud** — Everything stays on your local network
+- **🖼️ HEIC Support** — Native iPhone photo format handled via `pillow-heif`
+- **📴 No Setup Needed** — Just run the server and enter your folder path from the phone
+
+## Requirements
+
+- **Python 3.11 or later** (tested on Python 3.14)
+- **Windows 10 or later** laptop on the same WiFi as your iPhone
+- **iPhone** with Safari (iOS 12+)
+
+## Installation
+
+1. **Clone or download** this project folder.
+
+2. **Install Python dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+   On Windows, this installs:
+   - `fastapi` — web framework
+   - `uvicorn[standard]` — ASGI server
+   - `pillow` — image resizing & thumbnail generation
+   - `pillow-heif` — HEIC/HEIF image format support
+   - `python-multipart` — file upload handling
+
+## Running the App
+
+### Option 1: Quick Start (Recommended)
+
+```bash
+python run.py
+```
+
+The server will start and print something like:
+
+```
+======================================================================
+PhotoBridge running!
+Local:  http://localhost:8000
+Phone:  http://192.168.1.100:8000   (same WiFi)
+Photos folder: not yet configured — open the app and complete setup
+======================================================================
+```
+
+### Option 2: Custom Port
+
+Set the `PORT` environment variable:
+
+```bash
+set PORT=9000
+python run.py
+```
+
+Or on PowerShell:
+```powershell
+$env:PORT = 9000
+python run.py
+```
+
+## First-Time Setup (from Your iPhone)
+
+1. **Find your laptop's LAN IP**:
+   - Run `ipconfig` on Windows
+   - Look for the "IPv4 Address" under your WiFi adapter (usually looks like `192.168.x.x`)
+
+2. **Open Safari on your iPhone** and go to:
+   ```
+   http://<your-laptop-ip>:8000
+   ```
+   (e.g., `http://192.168.1.100:8000`)
+
+3. **You'll see the setup screen**:
+   - Enter the full path to your photos folder on the laptop
+   - Example: `C:\Users\YourName\Pictures` or `D:\Photos\2024`
+   - The server validates the path and starts scanning
+
+4. **Your photos appear** in a grid, grouped by date (newest first)
+
+5. **Add to Home Screen** (optional but recommended):
+   - Tap the Share button (↗️) in Safari's menu bar
+   - Tap "Add to Home Screen"
+   - Name it "PhotoBridge" and tap Add
+   - PhotoBridge now appears as a full-screen app icon on your home screen
+
+## Changing the Photos Folder
+
+Click the ⚙️ gear icon in the top-right corner at any time to change the folder. The app will rescan and update.
+
+## Features in Detail
+
+### Grid & Navigation
+
+- **All Photos tab** — all media sorted by date
+- **Albums tab** — browse subfolders as albums
+- **Favorites tab** — only media you've marked with a heart
+- **Search** — type to filter by filename (case-insensitive)
+
+### Full-Screen Viewer
+
+- **Swipe left/right** — previous/next photo
+- **Arrow keys** (desktop) — prev/next
+- **Heart icon** — toggle favorite
+- **⬇️ Download/Save** — save to your phone's Photos app
+- **Close (✕)** — exit viewer
+
+### Save to Photos
+
+Tap the download button to save a photo or video:
+- **iPhone** — opens the native share sheet; tap "Save Image" or "Save Video"
+- **Other devices** — downloads the file normally
+
+### Rescan
+
+**Pull-to-refresh** the grid when you've added new files to your laptop's photos folder. The server doesn't need to be restarted.
+
+## Architecture
+
+### Backend
+
+- **`app/main.py`** — FastAPI routes and config endpoints
+- **`app/config.py`** — reads/writes `config.json` with the photos folder path
+- **`app/scanner.py`** — filesystem walk, EXIF date extraction, in-memory media index
+- **`app/media.py`** — thumbnail generation (Pillow), file streaming with HTTP range support
+- **`run.py`** — entry point; starts uvicorn server
+
+### Frontend
+
+- **`static/index.html`** — HTML structure
+- **`static/app.js`** — vanilla JavaScript (no framework)
+- **`static/style.css`** — dark theme CSS (iOS Photos aesthetic)
+- **`static/manifest.json`** — PWA manifest (display: standalone, dark theme)
+- **`static/sw.js`** — service worker (caches static files, never caches API)
+- **`static/icons/`** — app icons for home screen
+
+### Configuration
+
+- **`config.json`** (created on first run)
+  ```json
+  {
+    "photos_dir": "C:\\Users\\You\\Pictures",
+    "port": 8000
+  }
+  ```
+  - `photos_dir` — only set through the app setup screen, never hardcoded
+  - `port` — can be overridden by the `PORT` environment variable
+  - Add `config.json` to `.gitignore` since it's machine-specific
+
+## API Endpoints
+
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| `GET` | `/api/config` | Get current config (photos_dir, port, configured) |
+| `POST` | `/api/config` | Set photos directory (validates path exists) |
+| `GET` | `/api/media` | Get list of all media objects |
+| `POST` | `/api/rescan` | Rescan photos folder and rebuild index |
+| `GET` | `/api/thumb/{id}?w=300` | Get JPEG thumbnail (width in px, default 300) |
+| `GET` | `/api/full/{id}` | Stream original file (supports HTTP Range requests for video seeking) |
+| `GET` | `/api/download/{id}` | Download with attachment disposition (for Save to Photos) |
+
+All endpoints on paths like `/api/thumb/...` use URL-safe base64 IDs derived from relative paths on disk.
+
+## File Formats Supported
+
+### Images
+- `.jpg`, `.jpeg` (JPEG)
+- `.png` (PNG)
+- `.heic`, `.heif` (Apple formats, requires `pillow-heif`)
+- `.gif` (GIF)
+- `.webp` (WebP)
+
+### Videos
+- `.mp4` (MPEG-4)
+- `.mov` (QuickTime)
+- `.m4v` (iTunes video)
+
+Other files are skipped.
+
+## Metadata & Dates
+
+- **Images** — tries to read EXIF `DateTimeOriginal`, falls back to `DateTime`, then to file modified time
+- **Videos** — uses file modified time (no EXIF parsing)
+- All dates stored as ISO 8601 strings
+
+## Troubleshooting
+
+### Server won't start
+
+- Make sure Python 3.11+ is installed: `python --version`
+- Dependencies installed? Run: `pip install -r requirements.txt`
+- Port 8000 already in use? Set `PORT=9000 && python run.py`
+
+### Photos don't appear after setup
+
+- Double-check the folder path is correct (must be absolute path like `C:\Users\You\Pictures`)
+- Make sure the folder actually exists on your laptop
+- Try the gear icon → change the folder again or pull-to-refresh in the app
+
+### HEIC thumbnails fail
+
+- `pillow-heif` installation can fail if build tools aren't available
+- The app still works! Mobile Safari can display HEIC natively — only thumbnail generation is affected
+- To fix: install build tools or use pre-built wheels
+
+### iPhone can't reach the laptop
+
+- Are you on the same WiFi? Both connected to the same network?
+- Is the laptop's firewall blocking port 8000? Try temporarily disabling it or adding an exception
+- Did you type the IP correctly? Run `ipconfig` to double-check
+
+### Folder changes don't show up
+
+- Use pull-to-refresh gesture or tap the gear icon and reselect the folder
+- Server doesn't need to restart; rescan is on-demand
+
+## Running as a Background Service (Windows)
+
+To keep PhotoBridge running even when you close the terminal:
+
+### Using Task Scheduler
+
+1. Open Task Scheduler
+2. Create Basic Task → name it "PhotoBridge"
+3. Trigger: "At startup"
+4. Action: Start program `python.exe` with arguments:
+   ```
+   C:\path\to\PhotoBridge\run.py
+   ```
+   (use absolute path)
+5. Check "Run whether user is logged in or not"
+6. Finish
+
+### Using NSSM (Non-Sucking Service Manager)
+
+```bash
+nssm install PhotoBridge "C:\Python\python.exe" "C:\path\to\PhotoBridge\run.py"
+nssm start PhotoBridge
+```
+
+See [NSSM documentation](https://nssm.cc/) for details.
+
+## Known Limitations
+
+- **No cloud sync** — everything local only
+- **No user login** — assumes trusted local network
+- **Mobile Safari only** — tested on iOS 14+; Chrome/other browsers on Android not tested
+- **HEIC thumbnails** — depend on `pillow-heif` building correctly; app works fine without it (uses native format)
+- **Subfolders only** — only immediate subfolders become albums; deeply nested folders are not treated as albums
+- **No metadata editing** — viewing and favorite-marking only
+
+## Example Folder Structure
+
+```
+C:\Users\You\Pictures/
+├── 2024/
+│   ├── vacation-001.jpg
+│   ├── vacation-002.mov
+├── 2023/
+│   ├── family-photo.heic
+├── screenshot.png
+└── meme.gif
+```
+
+When you point PhotoBridge to `C:\Users\You\Pictures`:
+- Files directly in that folder belong to album **"All Photos"**
+- Each subfolder (2024, 2023) becomes an album
+- You can filter to see only one album's photos
+
+## Development
+
+### Project Structure
+
+```
+photobridge/
+├── app/
+│   ├── __init__.py
+│   ├── main.py          # FastAPI app
+│   ├── config.py        # config.json I/O
+│   ├── scanner.py       # filesystem walk + EXIF
+│   └── media.py         # thumbnails + streaming
+├── static/
+│   ├── index.html
+│   ├── app.js
+│   ├── style.css
+│   ├── manifest.json
+│   ├── sw.js
+│   └── icons/
+│       ├── icon-180.png
+│       └── icon-512.png
+├── run.py               # entry point
+├── requirements.txt
+├── config.json          # generated on first run
+└── README.md
+```
+
+### Testing the API
+
+```bash
+# Get config
+curl http://localhost:8000/api/config
+
+# Set photos folder
+curl -X POST http://localhost:8000/api/config \
+  -H "Content-Type: application/json" \
+  -d "{\"photos_dir\": \"C:\\\\Users\\\\You\\\\Pictures\"}"
+
+# Get media list
+curl http://localhost:8000/api/media
+
+# Rescan
+curl -X POST http://localhost:8000/api/rescan
+
+# Get thumbnail
+curl http://localhost:8000/api/thumb/YOUR_MEDIA_ID?w=300 > thumb.jpg
+
+# Stream full video with range request
+curl -r 0-999 http://localhost:8000/api/full/YOUR_VIDEO_ID > partial.mp4
+```
+
+## License
+
+This project is provided as-is for personal use on trusted local networks. No warranty is provided.
+
+---
+
+**Enjoy browsing your photos from your iPhone! 📱📸**
+
