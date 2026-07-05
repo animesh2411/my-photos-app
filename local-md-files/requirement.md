@@ -142,6 +142,10 @@ Photos folder: not yet configured — open the app and complete setup
   refer to something on the laptop's disk, not the phone's). On success,
   writes it to `config.json`, triggers a rescan, and returns
   `{"photos_dir": "...", "count": <int>}`.
+- `POST /api/select-folder` → Opens the native Windows folder selection dialog
+  on the server (laptop) using Tkinter and returns the selected path:
+  `{"path": "<absolute path>"}` (or `{"path": null}` if cancelled). Helps
+  avoid manual path typing on phones.
 - `GET /api/media` → returns the full JSON list of media objects (from the
   current in-memory index). Returns an empty list if `photos_dir` isn't
   configured yet.

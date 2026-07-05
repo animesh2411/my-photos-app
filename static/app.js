@@ -139,10 +139,27 @@ function renderSetupScreen() {
     div.innerHTML = `
         <h1>PhotoBridge</h1>
         <p>Enter the full path to the folder on your laptop you want to browse.<br>Example: <code>C:\\Users\\yourname\\Pictures</code></p>
-        <input type="text" id="pathInput" placeholder="C:\\Users\\yourname\\Pictures">
+        <div class="input-group">
+            <input type="text" id="pathInput" placeholder="C:\\Users\\yourname\\Pictures">
+            <button id="browseBtn" class="secondary-button">Browse Laptop...</button>
+        </div>
         <button id="connectBtn">Connect</button>
         <div class="error" id="errorMsg"></div>
     `;
+
+    div.querySelector('#browseBtn').addEventListener('click', async () => {
+        const errEl = div.querySelector('#errorMsg');
+        errEl.textContent = '';
+        try {
+            showToast('Check your laptop screen for the folder browser...');
+            const res = await fetch('/api/select-folder', { method: 'POST' }).then(r => r.json());
+            if (res.path) {
+                div.querySelector('#pathInput').value = res.path;
+            }
+        } catch (err) {
+            errEl.textContent = 'Failed to open file explorer: ' + err.message;
+        }
+    });
 
     div.querySelector('#connectBtn').addEventListener('click', async () => {
         const path = div.querySelector('#pathInput').value.trim();
@@ -498,19 +515,81 @@ async function saveToPhotos() {
 // SETTINGS
 // ============================================================================
 
-async function openSettings() {
-    const config = await fetchConfig();
-    const newPath = prompt('Enter new photos folder path:', config.photos_dir || '');
-    if (newPath && newPath !== config.photos_dir) {
-        try {
-            await setPhotosDir(newPath);
-            await loadMedia();
-            render();
-            showToast('Folder updated');
-        } catch (err) {
-            showToast(err.message);
-        }
-    }
+function openSettings() {
+    // Check if modal already exists, remove it
+    const existing = document.getElementById('settingsModal');
+    if (existing) existing.remove();
+
+    fetchConfig().then(config => {
+        const modal = document.createElement('div');
+        modal.id = 'settingsModal';
+        modal.className = 'modal-backdrop';
+        modal.innerHTML = `
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h2>Settings</h2>
+                    <button class="close-modal-btn" id="modalCloseBtn">✕</button>
+                </div>
+                <div class="modal-body">
+                    <p>Enter the folder path on your laptop or browse to select one:</p>
+                    <div class="input-group">
+                        <input type="text" id="modalPathInput" value="${config.photos_dir || ''}" placeholder="C:\\Users\\yourname\\Pictures">
+                        <button id="modalBrowseBtn" class="secondary-button">Browse...</button>
+                    </div>
+                    <div class="error" id="modalErrorMsg"></div>
+                </div>
+                <div class="modal-footer">
+                    <button id="modalCancelBtn" class="modal-btn-cancel">Cancel</button>
+                    <button id="modalSaveBtn" class="modal-btn-save">Save Changes</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+        // Force reflow for fade-in transition
+        modal.offsetHeight;
+        modal.classList.add('active');
+
+        const closeModal = () => {
+            modal.classList.remove('active');
+            setTimeout(() => modal.remove(), 300);
+        };
+
+        modal.querySelector('#modalCloseBtn').addEventListener('click', closeModal);
+        modal.querySelector('#modalCancelBtn').addEventListener('click', closeModal);
+
+        modal.querySelector('#modalBrowseBtn').addEventListener('click', async () => {
+            const errEl = modal.querySelector('#modalErrorMsg');
+            errEl.textContent = '';
+            try {
+                showToast('Check your laptop screen for the folder browser...');
+                const res = await fetch('/api/select-folder', { method: 'POST' }).then(r => r.json());
+                if (res.path) {
+                    modal.querySelector('#modalPathInput').value = res.path;
+                }
+            } catch (err) {
+                errEl.textContent = 'Failed to open file explorer: ' + err.message;
+            }
+        });
+
+        modal.querySelector('#modalSaveBtn').addEventListener('click', async () => {
+            const newPath = modal.querySelector('#modalPathInput').value.trim();
+            if (!newPath) return;
+
+            const errEl = modal.querySelector('#modalErrorMsg');
+            errEl.textContent = '';
+
+            try {
+                await setPhotosDir(newPath);
+                await loadMedia();
+                render();
+                showToast('Folder updated successfully');
+                closeModal();
+            } catch (err) {
+                errEl.textContent = err.message;
+            }
+        });
+    });
 }
 
 // ============================================================================

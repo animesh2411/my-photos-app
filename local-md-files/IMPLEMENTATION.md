@@ -10,6 +10,7 @@ PhotoBridge has been fully implemented according to the spec. Here's what's work
 - ✅ **main.py** — FastAPI application with all routes:
   - ✅ `GET /api/config` — Get current configuration
   - ✅ `POST /api/config` — Set photos folder path
+  - ✅ `POST /api/select-folder` — Open native folder selection dialog on server
   - ✅ `GET /api/media` — List all media objects
   - ✅ `POST /api/rescan` — Rebuild media index
   - ✅ `GET /api/thumb/{id}` — Generate JPEG thumbnails
@@ -21,7 +22,7 @@ PhotoBridge has been fully implemented according to the spec. Here's what's work
 - ✅ **index.html** — HTML structure with PWA metadata
 - ✅ **style.css** — Dark theme CSS (iOS Photos aesthetic)
 - ✅ **app.js** — Complete single-page app with:
-  - ✅ Setup/Settings screen for configuring photos folder
+  - ✅ Setup/Settings screen with "Browse Laptop..." folder selector
   - ✅ Grid view with date-grouped media
   - ✅ Tab navigation (All Photos / Albums / Favorites)
   - ✅ Search functionality (filters by filename)
@@ -30,7 +31,7 @@ PhotoBridge has been fully implemented according to the spec. Here's what's work
   - ✅ Favorites with localStorage persistence
   - ✅ Save to Photos button with Web Share API integration
   - ✅ Pull-to-rescan gesture
-  - ✅ Settings screen (gear icon) for changing folder
+  - ✅ Custom Settings modal (gear icon) for changing folder dynamically
 
 ### PWA & Service Worker (Step 9 Complete)
 - ✅ **manifest.json** — PWA manifest (standalone display, dark theme)

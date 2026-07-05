@@ -40,6 +40,7 @@ my-photos-app/
 ### Backend API (All Endpoints Working)
 - ✅ `GET /api/config` — Get current configuration
 - ✅ `POST /api/config` — Set photos folder path (with validation)
+- ✅ `POST /api/select-folder` — Open native folder selection dialog on server
 - ✅ `GET /api/media` — List all media objects
 - ✅ `POST /api/rescan` — Rebuild media index
 - ✅ `GET /api/thumb/{id}?w=300` — Generate JPEG thumbnails
@@ -48,7 +49,7 @@ my-photos-app/
 - ✅ Static file serving (frontend)
 
 ### Frontend Features (All Working)
-- ✅ Setup screen (enter laptop photos folder path)
+- ✅ Setup screen (enter path or click "Browse Laptop..." to select folder)
 - ✅ Date-grouped photo grid (newest first)
 - ✅ Tab navigation (All Photos / Albums / Favorites)
 - ✅ Search by filename (live filtering)
@@ -58,7 +59,7 @@ my-photos-app/
 - ✅ Favorites with localStorage persistence
 - ✅ Save to Photos button (iOS Web Share API)
 - ✅ Pull-to-rescan gesture
-- ✅ Settings screen (change folder via gear icon)
+- ✅ Custom Settings modal (change folder via gear icon with "Browse..." button)
 
 ### Advanced Features (All Working)
 - ✅ HTTP range requests (video seeking/scrubbing)

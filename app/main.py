@@ -10,6 +10,9 @@ from pydantic import BaseModel
 import os
 import socket
 import mimetypes
+import asyncio
+import tkinter as tk
+from tkinter import filedialog
 
 from app.config import get_config, set_photos_dir, get_port_from_env
 from app.scanner import MediaIndex, decode_id
@@ -112,6 +115,35 @@ async def api_set_config(request: ConfigRequest):
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+def _open_folder_dialog() -> str | None:
+    try:
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes('-topmost', True)
+        root.focus_force()
+        selected_dir = filedialog.askdirectory(title="Select Photos Folder")
+        root.destroy()
+        return selected_dir if selected_dir else None
+    except Exception as e:
+        print("Error in native folder dialog:", e)
+        return None
+
+
+@app.post("/api/select-folder")
+async def api_select_folder():
+    """
+    Open a native folder selection dialog on the server (laptop)
+    and return the selected path.
+    """
+    try:
+        selected_dir = await asyncio.to_thread(_open_folder_dialog)
+        if selected_dir:
+            return {"path": os.path.abspath(selected_dir)}
+        return {"path": None}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to open folder picker: {str(e)}")
 
 
 # ============================================================================

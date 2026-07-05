@@ -178,6 +178,7 @@ Tap the download button to save a photo or video:
 |--------|----------|---------|
 | `GET` | `/api/config` | Get current config (photos_dir, port, configured) |
 | `POST` | `/api/config` | Set photos directory (validates path exists) |
+| `POST` | `/api/select-folder` | Open native folder picker on server (returns selected path) |
 | `GET` | `/api/media` | Get list of all media objects |
 | `POST` | `/api/rescan` | Rescan photos folder and rebuild index |
 | `GET` | `/api/thumb/{id}?w=300` | Get JPEG thumbnail (width in px, default 300) |
