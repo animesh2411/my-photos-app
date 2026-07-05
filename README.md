@@ -76,20 +76,34 @@ python run.py
    - Run `ipconfig` on Windows
    - Look for the "IPv4 Address" under your WiFi adapter (usually looks like `192.168.x.x`)
 
-2. **Open Safari on your iPhone** and go to:
+2. **Configure Windows Firewall (Required for phone access)**:
+   By default, Windows blocks incoming connections from other devices on the network. Before trying to connect:
+   - **Switch Network Profile to Private**:
+     1. Open **Settings** on your laptop (`Win + I`).
+     2. Go to **Network & Internet** > **Wi-Fi**.
+     3. Click on your active Wi-Fi connection.
+     4. Change the Network profile type to **Private**.
+   - **Allow Port 8000 through Firewall**:
+     1. Right-click the Start menu and select **Terminal (Admin)** or **PowerShell (Admin)**.
+     2. Run the following command:
+        ```powershell
+        New-NetFirewallRule -DisplayName "PhotoBridge Port 8000" -Direction Inbound -LocalPort 8000 -Protocol TCP -Action Allow
+        ```
+
+3. **Open Safari on your iPhone** and go to:
    ```
    http://<your-laptop-ip>:8000
    ```
-   (e.g., `http://192.168.1.100:8000`)
+   (e.g., `http://192.168.1.8:8000`)
 
-3. **You'll see the setup screen**:
+4. **You'll see the setup screen**:
    - Enter the full path to your photos folder on the laptop
    - Example: `C:\Users\YourName\Pictures` or `D:\Photos\2024`
    - The server validates the path and starts scanning
 
-4. **Your photos appear** in a grid, grouped by date (newest first)
+5. **Your photos appear** in a grid, grouped by date (newest first)
 
-5. **Add to Home Screen** (optional but recommended):
+6. **Add to Home Screen** (optional but recommended):
    - Tap the Share button (↗️) in Safari's menu bar
    - Tap "Add to Home Screen"
    - Name it "PhotoBridge" and tap Add
@@ -216,9 +230,16 @@ Other files are skipped.
 
 ### iPhone can't reach the laptop
 
-- Are you on the same WiFi? Both connected to the same network?
-- Is the laptop's firewall blocking port 8000? Try temporarily disabling it or adding an exception
-- Did you type the IP correctly? Run `ipconfig` to double-check
+- **Are you on the same WiFi?** Both the phone and laptop must be connected to the exact same Wi-Fi network.
+- **Did you type the IP correctly?** Run `ipconfig` on the laptop to find the correct active IPv4 address (usually `192.168.1.x`).
+- **Is your network profile set to Public?** Windows Firewall blocks inbound traffic on Public networks. Switch it to **Private**:
+  1. Open Windows **Settings** (`Win + I`) -> **Network & Internet** -> **Wi-Fi**.
+  2. Click your Wi-Fi name.
+  3. Select **Private** under Network Profile Type.
+- **Is Windows Firewall blocking Port 8000?** Add an inbound firewall rule by opening **PowerShell (as Administrator)** and running:
+  ```powershell
+  New-NetFirewallRule -DisplayName "PhotoBridge Port 8000" -Direction Inbound -LocalPort 8000 -Protocol TCP -Action Allow
+  ```
 
 ### Folder changes don't show up
 

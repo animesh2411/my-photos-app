@@ -20,6 +20,38 @@ let state = {
 };
 
 // ============================================================================
+// LAZY LOADING OBSERVER
+// ============================================================================
+
+let lazyImageObserver = null;
+
+function getLazyImageObserver() {
+    if (lazyImageObserver) return lazyImageObserver;
+
+    if ('IntersectionObserver' in window) {
+        lazyImageObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const el = entry.target;
+                    if (el.dataset.src) {
+                        el.src = el.dataset.src;
+                        el.removeAttribute('data-src');
+                        if (el.tagName === 'VIDEO') {
+                            el.load(); // Required to trigger video loading in Safari/Chrome
+                        }
+                    }
+                    observer.unobserve(el);
+                }
+            });
+        }, {
+            rootMargin: '300px 0px 300px 0px', // Preload 300px before/after viewport
+            threshold: 0
+        });
+    }
+    return lazyImageObserver;
+}
+
+// ============================================================================
 // INITIALIZATION
 // ============================================================================
 
@@ -131,6 +163,7 @@ function renderSetupScreen() {
 
 function renderMainApp() {
     const div = document.createElement('div');
+    div.id = 'mainApp';
     div.innerHTML = `
         <div id="topBar"></div>
         <div id="albumBar" style="display: none;"></div>
@@ -266,18 +299,46 @@ function renderGrid(app) {
 
             if (media.type === 'image') {
                 const img = document.createElement('img');
-                img.src = `/api/thumb/${media.id}?w=300`;
-                img.loading = 'lazy';
                 img.alt = media.filename;
-                tile.appendChild(img);
+
+                const observer = getLazyImageObserver();
+                if (observer) {
+                    img.dataset.src = `/api/thumb/${media.id}?w=300`;
+                    img.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"%3E%3C/svg%3E';
+                    tile.appendChild(img);
+                    observer.observe(img);
+                } else {
+                    img.src = `/api/thumb/${media.id}?w=300`;
+                    tile.appendChild(img);
+                }
             } else {
-                const placeholder = document.createElement('div');
-                placeholder.className = 'video-placeholder';
-                placeholder.innerHTML = `
-                    <div class="play-icon">▶</div>
-                    <div>${media.filename}</div>
-                `;
-                tile.appendChild(placeholder);
+                const containerDiv = document.createElement('div');
+                containerDiv.className = 'video-tile-container';
+
+                const video = document.createElement('video');
+                video.className = 'video-thumbnail';
+                video.muted = true;
+                video.playsInline = true;
+                video.setAttribute('playsinline', '');
+
+                const observer = getLazyImageObserver();
+                if (observer) {
+                    video.dataset.src = `/api/full/${media.id}#t=0.1`;
+                    video.preload = 'metadata';
+                    containerDiv.appendChild(video);
+                    observer.observe(video);
+                } else {
+                    video.src = `/api/full/${media.id}#t=0.1`;
+                    video.preload = 'metadata';
+                    containerDiv.appendChild(video);
+                }
+
+                const overlay = document.createElement('div');
+                overlay.className = 'video-overlay';
+                overlay.innerHTML = '<div class="play-icon">▶</div>';
+                containerDiv.appendChild(overlay);
+
+                tile.appendChild(containerDiv);
             }
 
             tile.addEventListener('click', () => {
@@ -391,20 +452,45 @@ function toggleSlideshow() {
 
 async function saveToPhotos() {
     const media = state.media[state.currentViewerIndex];
-    const res = await fetch(`/api/download/${media.id}`);
-    const blob = await res.blob();
-    const file = new File([blob], media.filename, { type: blob.type });
+    try {
+        const res = await fetch(`/api/download/${media.id}`);
+        if (!res.ok) throw new Error('Network response was not ok');
+        const blob = await res.blob();
 
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        navigator.share({ files: [file] });
-    } else {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = media.filename;
-        a.click();
-        URL.revokeObjectURL(url);
-        showToast('File downloaded. Long-press and choose "Add to Photos".');
+        let shared = false;
+        // The Web Share API is only supported in secure contexts (HTTPS) and localhost.
+        // On LAN HTTP, it will throw a security exception if we try to call it, so we wrap it in a try/catch.
+        try {
+            if (navigator.canShare && navigator.share) {
+                const file = new File([blob], media.filename, { type: blob.type });
+                if (navigator.canShare({ files: [file] })) {
+                    await navigator.share({ files: [file] });
+                    shared = true;
+                }
+            }
+        } catch (shareErr) {
+            console.warn('Web Share failed or blocked by context security:', shareErr);
+        }
+
+        if (!shared) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = media.filename;
+            document.body.appendChild(a); // Required for some mobile browsers
+            a.click();
+            document.body.removeChild(a);
+            
+            // Delay revoking the object URL, otherwise iOS/macOS Safari will cancel the download immediately
+            setTimeout(() => {
+                URL.revokeObjectURL(url);
+            }, 2000);
+            
+            showToast('File downloaded. Long-press to save if it didn\'t download.');
+        }
+    } catch (err) {
+        console.error('Save to photos failed:', err);
+        showToast('Download failed: ' + err.message);
     }
 }
 
