@@ -17,7 +17,8 @@ let state = {
     currentViewerIndex: 0,
     favorites: JSON.parse(localStorage.getItem('favorites') || '[]'),
     viewerActive: false,
-    viewedMedia: []
+    viewedMedia: [],
+    inAlbumDetail: false
 };
 
 // ============================================================================
@@ -185,16 +186,15 @@ function renderMainApp() {
     div.id = 'mainApp';
     div.innerHTML = `
         <div id="topBar"></div>
-        <div id="albumBar" style="display: none;"></div>
         <div id="gridContainer"></div>
         <div id="fullscreenViewer"></div>
     `;
 
     const topBar = div.querySelector('#topBar');
     topBar.innerHTML = `
-        <button class="tab-button active" data-tab="all-photos">All Photos</button>
-        <button class="tab-button" data-tab="albums">Albums</button>
-        <button class="tab-button" data-tab="favorites">Favorites</button>
+        <button class="tab-button${state.currentTab === 'all-photos' ? ' active' : ''}" data-tab="all-photos">All Photos</button>
+        <button class="tab-button${state.currentTab === 'albums' ? ' active' : ''}" data-tab="albums">Albums</button>
+        <button class="tab-button${state.currentTab === 'favorites' ? ' active' : ''}" data-tab="favorites">Favorites</button>
         <input type="text" id="searchBox" placeholder="Search...">
         <button id="settingsBtn">⚙️</button>
     `;
@@ -206,6 +206,7 @@ function renderMainApp() {
             btn.classList.add('active');
             state.currentTab = btn.dataset.tab;
             state.searchQuery = '';
+            state.inAlbumDetail = false; // Reset to album list on tab switch
             const searchBox = topBar.querySelector('#searchBox');
             if (searchBox) searchBox.value = '';
             render();
@@ -226,23 +227,6 @@ function renderMainApp() {
         openSettings();
     });
 
-    // Album bar
-    const albumBar = div.querySelector('#albumBar');
-    if (state.currentTab === 'albums') {
-        albumBar.style.display = 'flex';
-        albumBar.innerHTML = '';
-        state.albums.forEach(album => {
-            const chip = document.createElement('button');
-            chip.className = 'album-chip' + (state.selectedAlbum === album ? ' active' : '');
-            chip.textContent = album;
-            chip.addEventListener('click', () => {
-                state.selectedAlbum = album;
-                render();
-            });
-            albumBar.appendChild(chip);
-        });
-    }
-
     // Grid
     renderGrid(div);
 
@@ -251,10 +235,32 @@ function renderMainApp() {
     viewer.innerHTML = `
         <div id="viewerContent"></div>
         <div id="viewerControls">
-            <button class="control-button" id="closeBtn">✕</button>
-            <button class="control-button" id="slideshowBtn">▶</button>
-            <button class="control-button" id="favButton">♡</button>
-            <button class="control-button" id="saveBtn">⬇</button>
+            <button class="control-button" id="closeBtn" title="Close">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+            <button class="control-button" id="slideshowBtn" title="Slideshow">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M8 5v14l11-7z"/>
+                </svg>
+            </button>
+            <button class="control-button" id="favButton" title="Favorite">
+                <svg class="icon-outline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                </svg>
+                <svg class="icon-filled" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                </svg>
+            </button>
+            <button class="control-button" id="saveBtn" title="Save to Photos">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+            </button>
         </div>
     `;
 
@@ -274,10 +280,111 @@ function renderMainApp() {
     return div;
 }
 
+function getAlbumList() {
+    const albums = {};
+    state.media.forEach(m => {
+        const albumName = m.album;
+        if (!albums[albumName]) {
+            albums[albumName] = {
+                name: albumName,
+                count: 0,
+                coverMedia: null
+            };
+        }
+        albums[albumName].count++;
+        
+        const currentCover = albums[albumName].coverMedia;
+        if (!currentCover) {
+            albums[albumName].coverMedia = m;
+        } else if (currentCover.type === 'video' && m.type === 'image') {
+            albums[albumName].coverMedia = m;
+        }
+    });
+    return Object.values(albums).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function setupPullToRefresh(container) {
+    let pullStartY = 0;
+    container.addEventListener('touchstart', (e) => {
+        if (container.scrollTop === 0) {
+            pullStartY = e.touches[0].clientY;
+        }
+    });
+
+    container.addEventListener('touchend', (e) => {
+        if (container.scrollTop === 0 && e.changedTouches[0].clientY - pullStartY > 100) {
+            rescanMedia();
+        }
+    });
+}
+
 function renderGrid(app) {
     const container = app.querySelector('#gridContainer');
     container.innerHTML = '';
 
+    // 1. ALBUMS GRID VIEW (Not in album detail yet)
+    if (state.currentTab === 'albums' && !state.inAlbumDetail) {
+        const albumList = getAlbumList();
+        const albumsGrid = document.createElement('div');
+        albumsGrid.className = 'albums-grid';
+
+        albumList.forEach(album => {
+            const card = document.createElement('div');
+            card.className = 'album-card';
+            
+            let coverHtml = '';
+            if (album.coverMedia) {
+                if (album.coverMedia.type === 'image') {
+                    coverHtml = `<img src="/api/thumb/${album.coverMedia.id}?w=300" loading="lazy" alt="${album.name}">`;
+                } else {
+                    coverHtml = `<div class="video-cover-placeholder"><span class="play-icon">▶</span></div>`;
+                }
+            } else {
+                coverHtml = `<div class="video-cover-placeholder"><span class="play-icon">📷</span></div>`;
+            }
+
+            card.innerHTML = `
+                <div class="album-cover">
+                    ${coverHtml}
+                </div>
+                <div class="album-info">
+                    <div class="album-name">${album.name}</div>
+                    <div class="album-count">${album.count} item${album.count !== 1 ? 's' : ''}</div>
+                </div>
+            `;
+
+            card.addEventListener('click', () => {
+                state.selectedAlbum = album.name;
+                state.inAlbumDetail = true;
+                render();
+            });
+
+            albumsGrid.appendChild(card);
+        });
+
+        container.appendChild(albumsGrid);
+        
+        // Add Pull-to-refresh listener for Album list as well
+        setupPullToRefresh(container);
+        return;
+    }
+
+    // 2. ALBUM DETAIL VIEW HEADER (If in album detail)
+    if (state.currentTab === 'albums' && state.inAlbumDetail) {
+        const backBar = document.createElement('div');
+        backBar.className = 'album-back-bar';
+        backBar.innerHTML = `
+            <button id="albumBackBtn" class="back-button">◀ Albums</button>
+            <span class="album-title">${state.selectedAlbum}</span>
+        `;
+        backBar.querySelector('#albumBackBtn').addEventListener('click', () => {
+            state.inAlbumDetail = false;
+            render();
+        });
+        container.appendChild(backBar);
+    }
+
+    // 3. PHOTO GRID VIEW (For All Photos, Favorites, or Album Detail)
     let filteredMedia = state.media;
 
     // Filter by tab
@@ -374,18 +481,7 @@ function renderGrid(app) {
     });
 
     // Pull to refresh
-    let pullStartY = 0;
-    container.addEventListener('touchstart', (e) => {
-        if (container.scrollTop === 0) {
-            pullStartY = e.touches[0].clientY;
-        }
-    });
-
-    container.addEventListener('touchend', (e) => {
-        if (container.scrollTop === 0 && e.changedTouches[0].clientY - pullStartY > 100) {
-            rescanMedia();
-        }
-    });
+    setupPullToRefresh(container);
 }
 
 // ============================================================================
