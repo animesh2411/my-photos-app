@@ -311,6 +311,16 @@ When you point PhotoBridge to `C:\Users\You\Pictures`:
 - Each subfolder (2024, 2023) becomes an album
 - You can filter to see only one album's photos
 
+## Security & Privacy
+
+PhotoBridge is designed to run locally on your network. To protect your private files and settings, the following security measures are implemented:
+
+* 🔒 **Localhost Settings Protection**: Configuration adjustments (like changing the photos folder path or opening the native Windows folder selector dialog) can **only** be performed directly from the host laptop (`localhost`). Remote devices on your WiFi trying to make configuration changes will receive a `403 Forbidden` error.
+* 🔑 **Optional Access PIN**: You can set a connection **Access PIN** during initial setup or inside Settings. 
+  * If a PIN is configured, any device accessing the app from your Wi-Fi network must enter this PIN on a secure lock screen before they can see or download any photos.
+  * API requests are secured via an `X-PhotoBridge-PIN` header, while inline elements (`<img>` and `<video>`) append it as a query parameter (`?pin=XXXX`).
+* 🛡️ **Directory Traversal Protection**: All media files are accessed via secure, URL-safe base64 IDs mapped in memory. Users cannot request arbitrary files on your system by trying to load relative paths (e.g. `..\..\Windows`).
+
 ## Development
 
 ### Project Structure

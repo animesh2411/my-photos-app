@@ -248,6 +248,16 @@ Modify `style.css` to add a light theme, then add a toggle button in the UI.
 ### Metadata Display
 Enhance the viewer to show EXIF data (camera, lens, ISO, etc.) by parsing image metadata in `app/scanner.py`.
 
+## 🛡️ Security & PWA Redesigns (Recent Upgrades)
+
+### LAN Security Upgrades
+- **Localhost Directory Setup Protection**: Restricted folder browsing and saving APIs (`POST /api/select-folder` and `POST /api/config`) to `localhost`/`127.0.0.1`. Remote network clients attempting configuration tampering are rejected with a `403 Forbidden` error.
+- **Optional Access PIN Encryption**: Added a custom `access_pin` validation check (`Depends(verify_access_pin)`) on all media streams. Authorized access is granted via standard header authentication (`X-PhotoBridge-PIN`) or image element query parameters (`?pin=XXXX`). Unauthenticated connections trigger a glassmorphic PIN entry lock screen.
+
+### PWA Navigational Redesigns
+- **Albums Card Grid**: Redesigned the Albums tab to show a full-screen, grid-based card directory displaying folder names, total items, and dynamic cover photos (the first image in the subfolder). Details views open inside album subnavigation with a sticky back header.
+- **Circular SVG Viewer Controls**: Upgraded text icon buttons to premium circular vector SVG elements with custom iOS-red favorite toggles and tap scale transformations.
+
 ## Directory Structure at Runtime
 
 After first run:

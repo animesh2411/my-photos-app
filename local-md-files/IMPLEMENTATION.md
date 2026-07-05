@@ -212,6 +212,22 @@ function toggleSlideshow() {
 }
 ```
 
+## 🔒 Security Architecture & Recent Redesigns
+
+### 1. Localhost Settings Restriction
+To prevent remote clients on the local network from viewing/browsing the laptop's filesystem directory tree or opening dialogue popups, the `POST /api/config` and `POST /api/select-folder` endpoints check if the client request originates from `localhost`/`127.0.0.1` via a custom FastAPI request check. Remote LAN calls fail immediately with a `403 Forbidden` response.
+
+### 2. Optional Access PIN Authorization
+Any connections can be locked behind a custom Access PIN:
+- **Backend Validation**: FastAPI uses a dependency `Depends(verify_access_pin)` to intercept all media delivery routes. It validates if the Access PIN is provided via:
+  - Custom header `X-PhotoBridge-PIN` (used for AJAX/fetch calls).
+  - Query parameter `?pin=XXXX` (used for native HTML `<img>` and `<video>` tags).
+- **Glassmorphic Lock Screen**: If a `401 Unauthorized` is encountered on a client browser, a lock screen pops up asking for the PIN, which stores it in the browser's `localStorage` on verification.
+
+### 3. PWA Interface Redesigns
+- **Albums Tab Grid**: Replaced the horizontal chip bar with a full-screen, grid-based card directory displaying folder names, total items, and dynamic cover photos (the first image in the subfolder). Includes interactive scale tap feedback and a sticky back navigation header.
+- **Circular SVG Viewer Controls**: Upgraded text icon viewer buttons to premium circular vector SVG elements with custom iOS-red favorite toggles and tap scale transformations.
+
 ### Add More Image Formats
 In `app/scanner.py`, add to `IMAGE_EXTENSIONS`:
 ```python

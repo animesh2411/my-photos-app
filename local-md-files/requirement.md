@@ -332,3 +332,6 @@ so the phone can reach it over LAN.
       chrome.
 - [ ] The whole flow works from an iPhone on the same WiFi network, not
       just from the laptop's own browser.
+- [ ] **Albums Grid Redesign**: Albums tab displays as a full-screen card grid with cover photos and counts, and tapping one displays its photos with a back navigation button.
+- [ ] **Viewer Controls**: Controls are circular SVG button icons with tap scale animations and an animated iOS red favorite heart.
+- [ ] **LAN Security Protection**: Settings modification and folder browser calls are rejected with 403 Forbidden on remote devices, and unauthorized devices are presented with a glassmorphic PIN lock screen before receiving media.
