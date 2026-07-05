@@ -61,6 +61,9 @@ photobridge/
   run.py                  # entry point: starts uvicorn in a background thread
   run_app.bat             # double-clickable batch launcher for non-technical users
   README.md                # setup + run instructions
+  CONTRIBUTING.md          # contribution guidelines
+  .github/
+    CODEOWNERS             # github owners configuration file
 ```
 
 ## 4. Configuration

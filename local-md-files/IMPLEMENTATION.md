@@ -155,11 +155,15 @@ my-photos-app/
 │   └── icons/
 │       ├── icon-180.png      (home screen icon)
 │       └── icon-512.png      (home screen icon large)
+├── .github/
+│   └── CODEOWNERS            (GitHub repository ownership config)
 ├── run.py                    (entry point)
+├── run_app.bat               (windows server launcher)
 ├── config.json               (created on first run)
 ├── requirements.txt          (dependencies)
 ├── .gitignore               (excludes config.json)
 ├── README.md                (full documentation)
+├── CONTRIBUTING.md          (contribution guidelines)
 └── test_api.py              (API tests)
 ```
 

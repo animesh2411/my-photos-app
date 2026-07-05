@@ -13,6 +13,7 @@ PhotoBridge is a local web app that runs on a Windows laptop and lets an iPhone 
 - **🔄 No Cloud** — Everything stays on your local network
 - **🖼️ HEIC Support** — Native iPhone photo format handled via `pillow-heif`
 - **📴 No Setup Needed** — Just run the server and enter your folder path from the phone
+- **📴 Optional PIN for security** — Configure a PIN to restrict access to your photos from other devices on the same WiFi
 
 ## Requirements
 
@@ -342,10 +343,15 @@ photobridge/
 │   └── icons/
 │       ├── icon-180.png
 │       └── icon-512.png
+├── .github/
+│   └── CODEOWNERS       # github repository ownership config
 ├── run.py               # entry point
+├── run_app.bat          # windows server launcher
 ├── requirements.txt
 ├── config.json          # generated on first run
-└── README.md
+├── README.md
+└── CONTRIBUTING.md
+└── ARCHITECTURE.md
 ```
 
 ### Testing the API

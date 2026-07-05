@@ -265,11 +265,15 @@ After first run:
 my-photos-app/
 ├── app/                      # Code (unchanged)
 ├── static/                   # Frontend (unchanged)
+├── .github/
+│   └── CODEOWNERS            # GitHub repository ownership config
 ├── run.py                    # Entry point
+├── run_app.bat               # Windows server launcher
 ├── requirements.txt
 ├── config.json              # ← Created by app (machine-specific)
 ├── .gitignore               # ← Excludes config.json
-└── README.md
+├── README.md                # Full user guide
+└── CONTRIBUTING.md          # Contribution guidelines
 ```
 
 ## Next Steps for User
