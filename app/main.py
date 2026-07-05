@@ -3,7 +3,7 @@ FastAPI backend for PhotoBridge.
 Serves the photo grid API and static frontend files.
 """
 
-from fastapi import FastAPI, HTTPException, Header
+from fastapi import FastAPI, HTTPException, Header, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel
@@ -31,12 +31,14 @@ media_index = MediaIndex()
 
 class ConfigRequest(BaseModel):
     photos_dir: str
+    access_pin: str | None = None
 
 
 class ConfigResponse(BaseModel):
     photos_dir: str | None
     port: int
     configured: bool
+    pin_required: bool
 
 
 # ============================================================================
@@ -80,6 +82,31 @@ def print_startup_banner():
     print("=" * 70 + "\n")
 
 
+from fastapi import Request, Header, HTTPException, status
+from app.config import set_access_pin
+
+def verify_local_request(request: Request):
+    """Ensure configuration endpoints are only called from localhost."""
+    client_host = request.client.host
+    if client_host not in ("127.0.0.1", "localhost", "::1"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Configuration changes are only allowed from the host laptop (localhost)"
+        )
+
+def verify_access_pin(x_photobridge_pin: str = Header(None), pin: str = None):
+    """Validate access PIN if configured, supporting both custom header and query string."""
+    config = get_config()
+    if config["pin_required"]:
+        expected = config["access_pin"]
+        provided = x_photobridge_pin or pin
+        if not provided or provided != expected:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or missing Access PIN"
+            )
+
+
 # ============================================================================
 # API Endpoints: Configuration
 # ============================================================================
@@ -91,18 +118,21 @@ async def api_get_config():
     return ConfigResponse(
         photos_dir=config["photos_dir"],
         port=config["port"],
-        configured=config["configured"]
+        configured=config["configured"],
+        pin_required=config["pin_required"]
     )
 
 
 @app.post("/api/config", response_model=ConfigResponse)
-async def api_set_config(request: ConfigRequest):
+async def api_set_config(request: ConfigRequest, req: Request):
     """
-    Set the photos directory.
+    Set the photos directory and optional access PIN.
     Validates that the path exists, saves to config.json, and rescans.
     """
+    verify_local_request(req)
     try:
         config = set_photos_dir(request.photos_dir)
+        config = set_access_pin(request.access_pin)
 
         # Rescan the new directory
         media_index.photos_dir = request.photos_dir
@@ -111,7 +141,8 @@ async def api_set_config(request: ConfigRequest):
         return ConfigResponse(
             photos_dir=config["photos_dir"],
             port=config["port"],
-            configured=config["configured"]
+            configured=config["configured"],
+            pin_required=config["pin_required"]
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -132,11 +163,12 @@ def _open_folder_dialog() -> str | None:
 
 
 @app.post("/api/select-folder")
-async def api_select_folder():
+async def api_select_folder(req: Request):
     """
     Open a native folder selection dialog on the server (laptop)
     and return the selected path.
     """
+    verify_local_request(req)
     try:
         selected_dir = await asyncio.to_thread(_open_folder_dialog)
         if selected_dir:
@@ -151,13 +183,13 @@ async def api_select_folder():
 # ============================================================================
 
 @app.get("/api/media")
-async def api_get_media():
+async def api_get_media(dependencies=Depends(verify_access_pin)):
     """Get the full list of media objects (photos and videos)."""
     return media_index.get_all_media()
 
 
 @app.post("/api/rescan")
-async def api_rescan():
+async def api_rescan(dependencies=Depends(verify_access_pin)):
     """Rescan the photos directory and rebuild the index."""
     config = get_config()
     if not config["configured"]:
@@ -175,7 +207,7 @@ async def api_rescan():
 # ============================================================================
 
 @app.get("/api/thumb/{media_id}")
-async def api_thumbnail(media_id: str, w: int = 300):
+async def api_thumbnail(media_id: str, w: int = 300, dependencies=Depends(verify_access_pin)):
     """
     Get a thumbnail for a media file.
     For images: returns JPEG thumbnail resized to w pixels on the longer side.
@@ -209,7 +241,7 @@ async def api_thumbnail(media_id: str, w: int = 300):
 
 
 @app.get("/api/full/{media_id}")
-async def api_full_media(media_id: str, range: str = Header(None)):
+async def api_full_media(media_id: str, range: str = Header(None), dependencies=Depends(verify_access_pin)):
     """
     Stream the original media file.
     Supports HTTP range requests for video seeking.
@@ -226,7 +258,7 @@ async def api_full_media(media_id: str, range: str = Header(None)):
 
 
 @app.get("/api/download/{media_id}")
-async def api_download_media(media_id: str, range: str = Header(None)):
+async def api_download_media(media_id: str, range: str = Header(None), dependencies=Depends(verify_access_pin)):
     """
     Download/stream the media file with attachment disposition.
     Supports HTTP range requests.

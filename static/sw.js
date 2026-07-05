@@ -3,7 +3,7 @@
  * Caches static app-shell files only; does NOT cache API responses
  */
 
-const CACHE_NAME = 'photobridge-v9';
+const CACHE_NAME = 'photobridge-v10';
 const STATIC_ASSETS = [
     '/',
     '/index.html',

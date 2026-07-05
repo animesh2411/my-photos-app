@@ -732,3 +732,79 @@ body {
     text-overflow: ellipsis;
 }
 
+/* PIN Access Screen */
+#pinScreen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+    background: #000;
+    text-align: center;
+}
+
+#pinScreen h1 {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    color: #fff;
+}
+
+#pinScreen p {
+    font-size: 15px;
+    color: #888;
+    max-width: 320px;
+    line-height: 1.5;
+    margin-bottom: 30px;
+}
+
+.pin-inputs {
+    margin-bottom: 24px;
+    width: 100%;
+    max-width: 280px;
+}
+
+.pin-inputs input {
+    width: 100%;
+    padding: 15px;
+    background: #1c1c1c;
+    border: 1px solid #333;
+    border-radius: 12px;
+    color: #fff;
+    font-size: 18px;
+    text-align: center;
+    letter-spacing: 4px;
+    font-weight: 600;
+}
+
+.pin-inputs input:focus {
+    outline: none;
+    border-color: #0a84ff;
+    background: #252525;
+}
+
+#pinSubmitBtn {
+    width: 100%;
+    max-width: 280px;
+    padding: 15px;
+    background: #0a84ff;
+    border: none;
+    color: #fff;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+#pinSubmitBtn:active {
+    opacity: 0.8;
+}
+
+#pinScreen .error {
+    margin-top: 15px;
+    color: #ff4444;
+    font-size: 14px;
+}
+

@@ -11,7 +11,8 @@ from pathlib import Path
 CONFIG_FILE = "config.json"
 DEFAULT_CONFIG = {
     "photos_dir": None,
-    "port": 8000
+    "port": 8000,
+    "access_pin": None
 }
 
 
@@ -43,12 +44,30 @@ def get_config() -> dict:
     # Check if directory is actually configured and exists
     photos_dir = config.get("photos_dir")
     is_configured = photos_dir is not None and os.path.isdir(photos_dir)
+    access_pin = config.get("access_pin")
 
     return {
         "photos_dir": photos_dir,
         "port": config.get("port", 8000),
+        "access_pin": access_pin,
+        "pin_required": access_pin is not None and access_pin != "",
         "configured": is_configured
     }
+
+
+def set_access_pin(pin: str | None) -> dict:
+    """Set or clear the access PIN in configuration."""
+    ensure_config_exists()
+    config_path = get_config_path()
+    with open(config_path, 'r') as f:
+        config = json.load(f)
+
+    config["access_pin"] = pin if pin else None
+    
+    with open(config_path, 'w') as f:
+        json.dump(config, f, indent=2)
+
+    return get_config()
 
 
 def set_photos_dir(path: str) -> dict:

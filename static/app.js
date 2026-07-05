@@ -18,7 +18,8 @@ let state = {
     favorites: JSON.parse(localStorage.getItem('favorites') || '[]'),
     viewerActive: false,
     viewedMedia: [],
-    inAlbumDetail: false
+    inAlbumDetail: false,
+    pinRequired: false
 };
 
 // ============================================================================
@@ -75,7 +76,15 @@ async function initializeApp() {
     state.configured = config.configured;
 
     if (state.configured) {
-        await loadMedia();
+        if (config.pin_required && !localStorage.getItem('pb_pin')) {
+            state.pinRequired = true;
+        } else {
+            try {
+                await loadMedia();
+            } catch (err) {
+                console.warn('Initialization media fetch failed (likely bad PIN):', err);
+            }
+        }
     }
 }
 
@@ -83,16 +92,46 @@ async function initializeApp() {
 // API CALLS
 // ============================================================================
 
+async function authedFetch(url, options = {}) {
+    if (!options.headers) options.headers = {};
+    const pin = localStorage.getItem('pb_pin');
+    if (pin) {
+        options.headers['X-PhotoBridge-PIN'] = pin;
+    }
+    
+    const res = await fetch(url, options);
+    
+    if (res.status === 401) {
+        localStorage.removeItem('pb_pin');
+        state.pinRequired = true;
+        render();
+        throw new Error('Unauthorized');
+    }
+    
+    return res;
+}
+
 async function fetchConfig() {
-    const res = await fetch('/api/config');
+    const headers = {};
+    const pin = localStorage.getItem('pb_pin');
+    if (pin) {
+        headers['X-PhotoBridge-PIN'] = pin;
+    }
+    const res = await fetch('/api/config', { headers });
     return res.json();
 }
 
-async function setPhotosDir(path) {
+async function setPhotosDir(path, pin = null) {
+    const headers = { 'Content-Type': 'application/json' };
+    const storedPin = pin || localStorage.getItem('pb_pin');
+    if (storedPin) {
+        headers['X-PhotoBridge-PIN'] = storedPin;
+    }
+
     const res = await fetch('/api/config', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ photos_dir: path })
+        headers,
+        body: JSON.stringify({ photos_dir: path, access_pin: pin })
     });
 
     if (!res.ok) {
@@ -104,7 +143,8 @@ async function setPhotosDir(path) {
 }
 
 async function loadMedia() {
-    const media = await fetch('/api/media').then(r => r.json());
+    const res = await authedFetch('/api/media');
+    const media = await res.json();
     state.media = media;
     state.viewedMedia = media;
 
@@ -114,7 +154,7 @@ async function loadMedia() {
 }
 
 async function rescanMedia() {
-    const res = await fetch('/api/rescan', { method: 'POST' });
+    const res = await authedFetch('/api/rescan', { method: 'POST' });
     if (res.ok) {
         await loadMedia();
         showToast('Photos rescanned');
@@ -129,11 +169,70 @@ function render() {
     const app = document.getElementById('app');
     app.innerHTML = '';
 
-    if (!state.configured) {
+    if (state.pinRequired) {
+        app.appendChild(renderPinScreen());
+    } else if (!state.configured) {
         app.appendChild(renderSetupScreen());
     } else {
         app.appendChild(renderMainApp());
     }
+}
+
+function renderPinScreen() {
+    const div = document.createElement('div');
+    div.id = 'pinScreen';
+    div.innerHTML = `
+        <h1>PhotoBridge Secure Access</h1>
+        <p>A secure connection PIN is required to browse photos. Enter the PIN configured on the server laptop.</p>
+        <div class="pin-inputs">
+            <input type="password" id="pinInput" placeholder="Enter PIN" maxlength="20">
+        </div>
+        <button id="pinSubmitBtn">Unlock</button>
+        <div class="error" id="pinErrorMsg"></div>
+    `;
+
+    div.querySelector('#pinSubmitBtn').addEventListener('click', async () => {
+        const pin = div.querySelector('#pinInput').value.trim();
+        const errEl = div.querySelector('#pinErrorMsg');
+        errEl.textContent = '';
+
+        if (!pin) {
+            errEl.textContent = 'Please enter the Access PIN.';
+            return;
+        }
+
+        try {
+            // Test if PIN works by loading media with it
+            const res = await fetch('/api/media', {
+                headers: { 'X-PhotoBridge-PIN': pin }
+            });
+
+            if (res.status === 401) {
+                errEl.textContent = 'Incorrect Access PIN. Please try again.';
+                return;
+            }
+
+            if (!res.ok) {
+                throw new Error('Server returned error ' + res.status);
+            }
+
+            // Pin is correct! Store it and load app
+            localStorage.setItem('pb_pin', pin);
+            state.pinRequired = false;
+            
+            const config = await fetchConfig();
+            state.configured = config.configured;
+
+            if (state.configured) {
+                await loadMedia();
+            }
+            render();
+        } catch (err) {
+            errEl.textContent = 'Verification failed: ' + err.message;
+        }
+    });
+
+    return div;
 }
 
 function renderSetupScreen() {
@@ -145,6 +244,10 @@ function renderSetupScreen() {
         <div class="input-group">
             <input type="text" id="pathInput" placeholder="C:\\Users\\yourname\\Pictures">
             <button id="browseBtn" class="secondary-button">Browse Laptop...</button>
+        </div>
+        <div style="margin-top: 15px; margin-bottom: 20px; width: 100%; max-width: 320px; text-align: left;">
+            <label style="font-size: 13px; color: #888; display: block; margin-bottom: 5px;">Access PIN (Optional - secures access from other devices)</label>
+            <input type="password" id="setupPinInput" placeholder="Set connection password" style="width: 100%; padding: 12px; background: #1c1c1c; border: 1px solid #333; border-radius: 8px; color: #fff; font-size: 14px; box-sizing: border-box;">
         </div>
         <button id="connectBtn">Connect</button>
         <div class="error" id="errorMsg"></div>
@@ -166,10 +269,16 @@ function renderSetupScreen() {
 
     div.querySelector('#connectBtn').addEventListener('click', async () => {
         const path = div.querySelector('#pathInput').value.trim();
+        const pin = div.querySelector('#setupPinInput').value.trim();
         if (!path) return;
 
         try {
-            await setPhotosDir(path);
+            await setPhotosDir(path, pin);
+            if (pin) {
+                localStorage.setItem('pb_pin', pin);
+            } else {
+                localStorage.removeItem('pb_pin');
+            }
             state.configured = true;
             await loadMedia();
             render();
@@ -429,14 +538,18 @@ function renderGrid(app) {
                 const img = document.createElement('img');
                 img.alt = media.filename;
 
+                const pin = localStorage.getItem('pb_pin') || '';
+                const pinParam = pin ? `&pin=${pin}` : '';
+                const pinQuery = pin ? `?pin=${pin}` : '';
+
                 const observer = getLazyImageObserver();
                 if (observer) {
-                    img.dataset.src = `/api/thumb/${media.id}?w=300`;
+                    img.dataset.src = `/api/thumb/${media.id}?w=300${pinParam}`;
                     img.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"%3E%3C/svg%3E';
                     tile.appendChild(img);
                     observer.observe(img);
                 } else {
-                    img.src = `/api/thumb/${media.id}?w=300`;
+                    img.src = `/api/thumb/${media.id}?w=300${pinParam}`;
                     tile.appendChild(img);
                 }
             } else {
@@ -449,14 +562,17 @@ function renderGrid(app) {
                 video.playsInline = true;
                 video.setAttribute('playsinline', '');
 
+                const pin = localStorage.getItem('pb_pin') || '';
+                const pinParamUrl = pin ? `?pin=${pin}` : '';
+
                 const observer = getLazyImageObserver();
                 if (observer) {
-                    video.dataset.src = `/api/full/${media.id}#t=0.1`;
+                    video.dataset.src = `/api/full/${media.id}${pinParamUrl}#t=0.1`;
                     video.preload = 'metadata';
                     containerDiv.appendChild(video);
                     observer.observe(video);
                 } else {
-                    video.src = `/api/full/${media.id}#t=0.1`;
+                    video.src = `/api/full/${media.id}${pinParamUrl}#t=0.1`;
                     video.preload = 'metadata';
                     containerDiv.appendChild(video);
                 }
@@ -505,10 +621,13 @@ function updateViewer() {
     const content = document.getElementById('viewerContent');
     content.innerHTML = '';
 
+    const pin = localStorage.getItem('pb_pin') || '';
+    const pinParam = pin ? `?pin=${pin}` : '';
+
     if (media.type === 'image') {
         const img = document.createElement('img');
         img.id = 'viewerImage';
-        img.src = `/api/full/${media.id}`;
+        img.src = `/api/full/${media.id}${pinParam}`;
         img.alt = media.filename;
         content.appendChild(img);
 
@@ -523,7 +642,7 @@ function updateViewer() {
             // Add background video clip for playback
             const video = document.createElement('video');
             video.id = 'viewerLiveVideo';
-            video.src = `/api/full/${media.live_video_id}`;
+            video.src = `/api/full/${media.live_video_id}${pinParam}`;
             video.muted = true;
             video.playsInline = true;
             video.setAttribute('playsinline', '');
@@ -571,7 +690,7 @@ function updateViewer() {
         const video = document.createElement('video');
         video.id = 'viewerVideo';
         video.controls = true;
-        video.src = `/api/full/${media.id}`;
+        video.src = `/api/full/${media.id}${pinParam}`;
         content.appendChild(video);
     }
 
@@ -630,8 +749,8 @@ async function saveToPhotos() {
     try {
         showToast('Preparing download...');
         
-        // Fetch the still image
-        const resImg = await fetch(`/api/download/${media.id}`);
+        // Fetch the still image using authedFetch
+        const resImg = await authedFetch(`/api/download/${media.id}`);
         if (!resImg.ok) throw new Error('Failed to download still image');
         const blobImg = await resImg.blob();
         
@@ -646,7 +765,7 @@ async function saveToPhotos() {
                 // Find the video media object in state.media to get its filename
                 const videoMedia = state.media.find(m => m.id === media.live_video_id);
                 if (videoMedia) {
-                    const resVid = await fetch(`/api/download/${media.live_video_id}`);
+                    const resVid = await authedFetch(`/api/download/${media.live_video_id}`);
                     if (resVid.ok) {
                         const blobVid = await resVid.blob();
                         const vidFile = new File([blobVid], videoMedia.filename, { type: blobVid.type });
@@ -725,11 +844,17 @@ function openSettings() {
                     <button class="close-modal-btn" id="modalCloseBtn">✕</button>
                 </div>
                 <div class="modal-body">
-                    <p>Enter the folder path on your laptop or browse to select one:</p>
-                    <div class="input-group">
+                    <p style="margin-bottom: 8px;">Photos Folder Path:</p>
+                    <div class="input-group" style="margin-bottom: 16px;">
                         <input type="text" id="modalPathInput" value="${config.photos_dir || ''}" placeholder="C:\\Users\\yourname\\Pictures">
                         <button id="modalBrowseBtn" class="secondary-button">Browse...</button>
                     </div>
+                    
+                    <p style="margin-bottom: 8px;">Access PIN (Optional - secures connections from other devices):</p>
+                    <div class="input-group" style="margin-bottom: 16px;">
+                        <input type="password" id="modalPinInput" value="${config.access_pin || ''}" placeholder="Set PIN (leave empty to disable)">
+                    </div>
+                    
                     <div class="error" id="modalErrorMsg"></div>
                 </div>
                 <div class="modal-footer">
@@ -768,16 +893,22 @@ function openSettings() {
 
         modal.querySelector('#modalSaveBtn').addEventListener('click', async () => {
             const newPath = modal.querySelector('#modalPathInput').value.trim();
+            const newPin = modal.querySelector('#modalPinInput').value.trim();
             if (!newPath) return;
 
             const errEl = modal.querySelector('#modalErrorMsg');
             errEl.textContent = '';
 
             try {
-                await setPhotosDir(newPath);
+                await setPhotosDir(newPath, newPin);
+                if (newPin) {
+                    localStorage.setItem('pb_pin', newPin);
+                } else {
+                    localStorage.removeItem('pb_pin');
+                }
                 await loadMedia();
                 render();
-                showToast('Folder updated successfully');
+                showToast('Settings updated successfully');
                 closeModal();
             } catch (err) {
                 errEl.textContent = err.message;
