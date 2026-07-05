@@ -39,7 +39,8 @@ PhotoBridge has been fully implemented according to the spec. Here's what's work
 - ✅ "Add to Home Screen" support on iOS
 
 ### Infrastructure
-- ✅ **run.py** — Entry point that starts uvicorn on 0.0.0.0
+- ✅ **run.py** — Entry point that starts uvicorn on 0.0.0.0 in a background thread
+- ✅ **run_app.bat** — Double-clickable batch launcher for non-technical users
 - ✅ **requirements.txt** — All dependencies listed
 - ✅ **.gitignore** — config.json excluded from version control
 - ✅ **README.md** — Complete documentation with setup & usage instructions
@@ -66,11 +67,12 @@ Sample image: test-photo.jpg
 
 ## 📋 Next Steps for Users
 
-1. **Stop the test server** (if running)
-2. **Run the real server**:
-   ```bash
-   python run.py
-   ```
+1. **Run the server (Recommended)**:
+   - Double-click **`run_app.bat`** in the project folder. It will configure Python, install dependencies, and start the app automatically.
+   - Alternatively, use the command line:
+     ```bash
+     python run.py
+     ```
 3. **From iPhone Safari** (on same WiFi):
    - Go to `http://<YOUR_LAPTOP_IP>:8000`
    - Enter your photos folder path (e.g., `C:\Users\You\Pictures`)

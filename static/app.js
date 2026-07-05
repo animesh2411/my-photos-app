@@ -16,7 +16,8 @@ let state = {
     selectedAlbum: 'All Photos',
     currentViewerIndex: 0,
     favorites: JSON.parse(localStorage.getItem('favorites') || '[]'),
-    viewerActive: false
+    viewerActive: false,
+    viewedMedia: []
 };
 
 // ============================================================================
@@ -104,6 +105,7 @@ async function setPhotosDir(path) {
 async function loadMedia() {
     const media = await fetch('/api/media').then(r => r.json());
     state.media = media;
+    state.viewedMedia = media;
 
     // Extract unique albums
     const albumSet = new Set(media.map(m => m.album));
@@ -291,6 +293,8 @@ function renderGrid(app) {
         filteredMedia = filteredMedia.filter(m => m.filename.toLowerCase().includes(q));
     }
 
+    state.viewedMedia = filteredMedia;
+
     // Group by date
     const grouped = {};
     filteredMedia.forEach(media => {
@@ -401,7 +405,7 @@ function closeViewer() {
 }
 
 function updateViewer() {
-    const media = state.media[state.currentViewerIndex];
+    const media = state.viewedMedia[state.currentViewerIndex];
     const content = document.getElementById('viewerContent');
     content.innerHTML = '';
 
@@ -411,6 +415,62 @@ function updateViewer() {
         img.src = `/api/full/${media.id}`;
         img.alt = media.filename;
         content.appendChild(img);
+
+        // If this image is a Live Photo, set up the badge and play preview
+        if (media.live_video_id) {
+            // Add Live Photo badge
+            const badge = document.createElement('div');
+            badge.className = 'live-badge';
+            badge.innerHTML = '<span class="live-icon"></span><span>LIVE</span>';
+            content.appendChild(badge);
+
+            // Add background video clip for playback
+            const video = document.createElement('video');
+            video.id = 'viewerLiveVideo';
+            video.src = `/api/full/${media.live_video_id}`;
+            video.muted = true;
+            video.playsInline = true;
+            video.setAttribute('playsinline', '');
+            video.loop = true;
+            content.appendChild(video);
+
+            let isPlaying = false;
+
+            const startPlayback = (e) => {
+                if (isPlaying) return;
+                isPlaying = true;
+                
+                // Add class to display the video element
+                video.classList.add('playing');
+                video.play().catch(err => console.warn('Live Photo video play failed:', err));
+                
+                // Premium tactile feedback
+                if (navigator.vibrate) {
+                    navigator.vibrate(15);
+                }
+                
+                if (e.cancelable) e.preventDefault();
+            };
+
+            const stopPlayback = () => {
+                if (!isPlaying) return;
+                isPlaying = false;
+                
+                video.classList.remove('playing');
+                video.pause();
+                video.currentTime = 0;
+            };
+
+            // Touch events for mobile
+            img.addEventListener('touchstart', startPlayback, { passive: false });
+            img.addEventListener('touchend', stopPlayback);
+            img.addEventListener('touchcancel', stopPlayback);
+
+            // Mouse events for desktop (click and hold)
+            img.addEventListener('mousedown', startPlayback);
+            img.addEventListener('mouseup', stopPlayback);
+            img.addEventListener('mouseleave', stopPlayback);
+        }
     } else {
         const video = document.createElement('video');
         video.id = 'viewerVideo';
@@ -441,17 +501,19 @@ function updateViewer() {
 }
 
 function nextMedia() {
-    state.currentViewerIndex = (state.currentViewerIndex + 1) % state.media.length;
+    if (!state.viewedMedia.length) return;
+    state.currentViewerIndex = (state.currentViewerIndex + 1) % state.viewedMedia.length;
     updateViewer();
 }
 
 function previousMedia() {
-    state.currentViewerIndex = (state.currentViewerIndex - 1 + state.media.length) % state.media.length;
+    if (!state.viewedMedia.length) return;
+    state.currentViewerIndex = (state.currentViewerIndex - 1 + state.viewedMedia.length) % state.viewedMedia.length;
     updateViewer();
 }
 
 function toggleFavorite() {
-    const media = state.media[state.currentViewerIndex];
+    const media = state.viewedMedia[state.currentViewerIndex];
     const idx = state.favorites.indexOf(media.id);
     if (idx >= 0) {
         state.favorites.splice(idx, 1);
@@ -468,20 +530,45 @@ function toggleSlideshow() {
 }
 
 async function saveToPhotos() {
-    const media = state.media[state.currentViewerIndex];
+    const media = state.viewedMedia[state.currentViewerIndex];
     try {
-        const res = await fetch(`/api/download/${media.id}`);
-        if (!res.ok) throw new Error('Network response was not ok');
-        const blob = await res.blob();
+        showToast('Preparing download...');
+        
+        // Fetch the still image
+        const resImg = await fetch(`/api/download/${media.id}`);
+        if (!resImg.ok) throw new Error('Failed to download still image');
+        const blobImg = await resImg.blob();
+        
+        let filesToShare = [];
+        const imgFile = new File([blobImg], media.filename, { type: blobImg.type });
+        filesToShare.push(imgFile);
+
+        let isLivePhoto = false;
+        // If it's a Live Photo, fetch the corresponding video file
+        if (media.live_video_id) {
+            try {
+                // Find the video media object in state.media to get its filename
+                const videoMedia = state.media.find(m => m.id === media.live_video_id);
+                if (videoMedia) {
+                    const resVid = await fetch(`/api/download/${media.live_video_id}`);
+                    if (resVid.ok) {
+                        const blobVid = await resVid.blob();
+                        const vidFile = new File([blobVid], videoMedia.filename, { type: blobVid.type });
+                        filesToShare.push(vidFile);
+                        isLivePhoto = true;
+                    }
+                }
+            } catch (vidErr) {
+                console.warn('Failed to fetch Live Photo video clip:', vidErr);
+            }
+        }
 
         let shared = false;
         // The Web Share API is only supported in secure contexts (HTTPS) and localhost.
-        // On LAN HTTP, it will throw a security exception if we try to call it, so we wrap it in a try/catch.
         try {
             if (navigator.canShare && navigator.share) {
-                const file = new File([blob], media.filename, { type: blob.type });
-                if (navigator.canShare({ files: [file] })) {
-                    await navigator.share({ files: [file] });
+                if (navigator.canShare({ files: filesToShare })) {
+                    await navigator.share({ files: filesToShare });
                     shared = true;
                 }
             }
@@ -490,25 +577,36 @@ async function saveToPhotos() {
         }
 
         if (!shared) {
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = media.filename;
-            document.body.appendChild(a); // Required for some mobile browsers
-            a.click();
-            document.body.removeChild(a);
-            
-            // Delay revoking the object URL, otherwise iOS/macOS Safari will cancel the download immediately
-            setTimeout(() => {
-                URL.revokeObjectURL(url);
-            }, 2000);
-            
-            showToast('File downloaded. Long-press to save if it didn\'t download.');
+            // Fallback: download files individually
+            triggerDownload(blobImg, media.filename);
+
+            if (isLivePhoto && filesToShare[1]) {
+                // Delay the second download so the browser doesn't block it
+                setTimeout(() => {
+                    triggerDownload(filesToShare[1], filesToShare[1].name);
+                }, 500);
+                showToast('Downloaded still and video clip. Long-press to save.');
+            } else {
+                showToast('File downloaded. Long-press to save if it didn\'t download.');
+            }
+        } else {
+            showToast(isLivePhoto ? 'Live Photo shared successfully!' : 'File shared successfully!');
         }
     } catch (err) {
         console.error('Save to photos failed:', err);
         showToast('Download failed: ' + err.message);
     }
+}
+
+function triggerDownload(blobOrFile, filename) {
+    const url = URL.createObjectURL(blobOrFile);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
 // ============================================================================

@@ -163,6 +163,23 @@ def scan_directory(photos_dir: str) -> List[Dict]:
                 print(f"Warning: Could not process {file_path}: {e}")
                 continue
 
+    # Pass 2: Identify Live Photos by pairing images with corresponding video files
+    # Create a map of video file relative directory + uppercase base name -> video media ID
+    videos_by_base = {}
+    for item in media_list:
+        if item["type"] == "video":
+            dir_path = os.path.dirname(item["rel_path"])
+            base_name = os.path.splitext(item["filename"])[0].upper()
+            videos_by_base[(dir_path, base_name)] = item["id"]
+
+    # Link images to their matching video ID if it exists
+    for item in media_list:
+        if item["type"] == "image":
+            dir_path = os.path.dirname(item["rel_path"])
+            base_name = os.path.splitext(item["filename"])[0].upper()
+            if (dir_path, base_name) in videos_by_base:
+                item["live_video_id"] = videos_by_base[(dir_path, base_name)]
+
     # Sort newest-first by date_taken
     media_list.sort(key=lambda x: x["date_taken"], reverse=True)
 

@@ -520,3 +520,69 @@ body {
     text-align: left;
 }
 
+/* Live Photo Badge */
+.live-badge {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    padding: 6px 12px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    color: #fff;
+    z-index: 110;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    pointer-events: none;
+    user-select: none;
+}
+
+.live-icon {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 1.5px solid #fff;
+    border-radius: 50%;
+    position: relative;
+}
+
+.live-icon::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 4px;
+    height: 4px;
+    background: #fff;
+    border-radius: 50%;
+}
+
+/* Stacking for Live Video in Viewer */
+#viewerContent {
+    position: relative;
+}
+
+#viewerLiveVideo {
+    display: none;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 105;
+}
+
+#viewerLiveVideo.playing {
+    display: block;
+}
+

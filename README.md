@@ -38,19 +38,30 @@ PhotoBridge is a local web app that runs on a Windows laptop and lets an iPhone 
 
 ## Running the App
 
-### Option 1: Quick Start (Recommended)
+### Option 1: Double-Click Launcher (Recommended for Non-Technical Users)
 
+Simply **double-click the `run_app.bat` file** in the project root folder.
+This batch script will automatically:
+1. Verify Python is installed.
+2. Create an isolated Python Virtual Environment (`.venv`) so it doesn't clutter your system.
+3. Automatically install all required dependencies from `requirements.txt`.
+4. Start the PhotoBridge server.
+5. Provide a simple prompt: **Press [ENTER] in the window to stop the server cleanly.**
+
+### Option 2: Command Line Quick Start
+
+If you prefer using the command line:
 ```bash
 python run.py
 ```
 
-The server will start and print something like:
+The server will start and print:
 
 ```
 ======================================================================
 PhotoBridge running!
 Local:  http://localhost:8000
-Phone:  http://192.168.1.100:8000   (same WiFi)
+Phone:  http://192.168.1.8:8000   (same WiFi)
 Photos folder: not yet configured — open the app and complete setup
 ======================================================================
 ```

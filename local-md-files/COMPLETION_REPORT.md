@@ -76,24 +76,22 @@ my-photos-app/
 
 ## Quick Start
 
-### 1. Install Dependencies
-```bash
-cd C:\Users\anime\PycharmProjects\PythonProject\my-photos-app
-pip install -r requirements.txt
-```
-*(Already done if you used this setup)*
+### 1. Start the Server (Double-Click Launcher - Recommended)
+Simply **double-click the `run_app.bat` file** in the project folder. This will automatically check your Python environment, create an isolated virtual environment (`.venv`), install dependencies, and run the server.
 
-### 2. Start the Server
+### 2. Start the Server (Manual Command Line)
+If you prefer running manual commands:
 ```bash
+pip install -r requirements.txt
 python run.py
 ```
 
 You'll see:
 ```
 ======================================================================
-PhotoBridge running!
+PhotoBridge Server is RUNNING!
 Local:  http://localhost:8000
-Phone:  http://192.168.1.100:8000   (same WiFi)
+Phone:  http://192.168.1.8:8000   (same WiFi)
 Photos folder: not yet configured — open the app and complete setup
 ======================================================================
 ```

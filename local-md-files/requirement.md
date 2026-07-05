@@ -58,7 +58,8 @@ photobridge/
       icon-512.png
   config.json              # created on first run once a folder is chosen; not committed to git
   requirements.txt
-  run.py                  # entry point: starts uvicorn
+  run.py                  # entry point: starts uvicorn in a background thread
+  run_app.bat             # double-clickable batch launcher for non-technical users
   README.md                # setup + run instructions
 ```
 
@@ -267,7 +268,7 @@ so the phone can reach it over LAN.
 
 1. Prerequisites: Python 3.11+ installed on Windows.
 2. `pip install -r requirements.txt`.
-3. How to run: `python run.py`.
+3. How to run: Double-click `run_app.bat` (automatically installs deps and runs server) or run `python run.py`.
 4. How to find the laptop's LAN IP (`ipconfig`, look for IPv4 address under
    the active WiFi adapter).
 5. How to open it on iPhone Safari, complete the one-time setup screen by

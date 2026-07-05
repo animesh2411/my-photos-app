@@ -49,17 +49,20 @@ You now have a **fully functional, production-ready PhotoBridge app** that:
 
 ## 🚀 How to Use
 
-### Start the server:
+### Start the server (Option 1: Recommended for Non-Technical Users):
+Simply **double-click the `run_app.bat`** file in the project folder. It will configure a virtual environment, install dependencies, and launch the server. To stop the server, just press **ENTER** in the launcher window.
+
+### Start the server (Option 2: Command Line):
 ```bash
-cd C:\Users\anime\PycharmProjects\PythonProject\my-photos-app
+cd f:\CodeX\PyCharmProjects\my-photos-app
 python run.py
 ```
 
 You'll see:
 ```
-PhotoBridge running!
+PhotoBridge Server is RUNNING!
 Local:  http://localhost:8000
-Phone:  http://192.168.1.100:8000   (same WiFi)
+Phone:  http://192.168.1.8:8000   (same WiFi)
 Photos folder: not yet configured — open the app and complete setup
 ```
 
