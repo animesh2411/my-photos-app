@@ -5,7 +5,7 @@ import socket
 import threading
 import time
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, filedialog
 
 # Setup system paths for backend imports
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -33,10 +33,10 @@ class PhotoBridgeGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("PhotoBridge Control Center")
-        self.root.geometry("480x560")
+        self.root.geometry("480x620")
         self.root.configure(bg=BG_COLOR)
         self.root.resizable(True, True)
-        self.root.minsize(440, 500)
+        self.root.minsize(440, 560)
         
         # Center the window on screen
         self.center_window()
@@ -56,7 +56,7 @@ class PhotoBridgeGUI:
     def center_window(self):
         self.root.update_idletasks()
         width = 480
-        height = 560
+        height = 620
         x = (self.root.winfo_screenwidth() // 2) - (width // 2)
         y = (self.root.winfo_screenheight() // 2) - (height // 2)
         self.root.geometry(f"{width}x{height}+{x}+{y}")
@@ -107,6 +107,36 @@ class PhotoBridgeGUI:
         
         self.srv_val = tk.Label(self.status_inner, text="Stopped", font=("Segoe UI", 11, "bold"), fg=RED_COLOR, bg=CARD_BG)
         self.srv_val.pack(anchor="w", pady=(0, 12))
+
+        # Photos folder line
+        dir_title = tk.Label(self.status_inner, text="Photos Folder Directory", font=("Segoe UI", 9), fg=TEXT_MUTED, bg=CARD_BG)
+        dir_title.pack(anchor="w", pady=(0, 2))
+
+        # Horizontal row containing the folder path and a Change button
+        dir_row = tk.Frame(self.status_inner, bg=CARD_BG)
+        dir_row.pack(anchor="w", fill="x", pady=(0, 12))
+
+        self.dir_val = tk.Label(dir_row, text="Not Configured", font=("Segoe UI", 10, "bold"), fg=TEXT_COLOR, bg=CARD_BG, justify="left", anchor="w")
+        self.dir_val.pack(side="left", fill="x", expand=True)
+
+        self.btn_change_dir = tk.Button(
+            dir_row,
+            text="Change...",
+            command=self.choose_directory,
+            bg=BORDER_COLOR,
+            fg=TEXT_COLOR,
+            activebackground="#3a3a3c",
+            activeforeground=TEXT_COLOR,
+            font=("Segoe UI", 8, "bold"),
+            bd=0,
+            relief="flat",
+            padx=8,
+            pady=2,
+            cursor="hand2"
+        )
+        self.btn_change_dir.pack(side="right", padx=(10, 0))
+        self.btn_change_dir.bind("<Enter>", lambda e: self.btn_change_dir.configure(bg="#3a3a3c"))
+        self.btn_change_dir.bind("<Leave>", lambda e: self.btn_change_dir.configure(bg=BORDER_COLOR))
 
         # Connection URLs Info
         self.url_label = tk.Label(
@@ -164,6 +194,7 @@ class PhotoBridgeGUI:
         wrap_width = event.width - 30
         if wrap_width > 100:
             self.url_label.configure(wraplength=wrap_width)
+            self.dir_val.configure(wraplength=wrap_width - 80)
 
     def check_firewall(self) -> bool:
         """Query firewall database for Port 8000 rule using netsh (non-admin friendly)."""
@@ -181,27 +212,119 @@ class PhotoBridgeGUI:
     def update_status_loop(self):
         """Periodically runs in the GUI thread to verify state and update buttons."""
         self.firewall_active = self.check_firewall()
-        
+
+        # Detect externally-killed server (e.g. taskkill or crash)
+        if self.server_running and self.server_process and self.server_process.poll() is not None:
+            self.server_process = None
+            self.server_running = False
+            self.on_server_stopped()
+
         # Update Firewall Status GUI
         if self.firewall_active:
             self.fw_val.configure(text="ACTIVE (Port 8000)", fg=GREEN_COLOR)
-            self.btn_setup.configure(state="disabled", text="1. Configured Successfully ✓")
-            self.btn_uninstall.configure(state="normal")
-            
+            self.btn_setup.configure(state="disabled", text="1. Configured Successfully ✓", bg=BORDER_COLOR)
+            self.btn_uninstall.configure(state="normal", bg=CARD_BG)
+
             # If server isn't running, run button is ready
             if not self.server_running:
                 self.btn_run.configure(state="normal", text="2. Start PhotoBridge Server", bg=GREEN_COLOR)
         else:
             self.fw_val.configure(text="MISSING (Inbound Blocked)", fg=YELLOW_COLOR)
-            self.btn_setup.configure(state="normal", text="1. Configure Firewall Rule (One-Time)")
-            self.btn_uninstall.configure(state="disabled")
-            
+            self.btn_setup.configure(state="normal", text="1. Configure Firewall Rule (One-Time)", bg=BLUE_COLOR)
+            self.btn_uninstall.configure(state="disabled", bg=BORDER_COLOR)
+
             # Server cannot be started safely without firewall rule
             if not self.server_running:
                 self.btn_run.configure(state="disabled", text="2. Start Server (Setup Firewall First)", bg=BORDER_COLOR)
 
+        # Update photos directory label
+        self.update_folder_label()
+
         # Reschedule check in 1.5 seconds
         self.root.after(1500, self.update_status_loop)
+
+    def update_folder_label(self):
+        """Read config.json and update the directory label text in the GUI."""
+        try:
+            from app.config import get_config
+            config = get_config()
+            folder = config.get("photos_dir")
+            if folder:
+                self.dir_val.configure(text=folder, fg=TEXT_COLOR)
+            else:
+                self.dir_val.configure(text="Not Configured", fg=RED_COLOR)
+        except Exception:
+            self.dir_val.configure(text="Error Loading Config", fg=RED_COLOR)
+
+    def choose_directory(self):
+        """Open a native Windows folder selector, write the path to config, and sync the server."""
+        selected_dir = filedialog.askdirectory(title="Select Photos Folder")
+        if not selected_dir:
+            return
+
+        selected_dir = os.path.abspath(selected_dir)
+
+        # Disable the button immediately so the user can't double-click
+        self.btn_change_dir.configure(state="disabled", text="Updating...")
+
+        if self.server_running:
+            # Run the HTTP call in a background thread so the UI stays responsive
+            def update_via_api():
+                import urllib.request
+                import json
+                from app.config import get_port_from_env, get_config
+                port = get_port_from_env()
+                try:
+                    config = get_config()
+                    headers = {'Content-Type': 'application/json'}
+                    if config.get("pin_required") and config.get("access_pin"):
+                        headers['X-PhotoBridge-PIN'] = config["access_pin"]
+
+                    payload = json.dumps({"photos_dir": selected_dir}).encode()
+                    req = urllib.request.Request(
+                        f"http://localhost:{port}/api/config",
+                        data=payload,
+                        headers=headers,
+                        method='POST'
+                    )
+                    with urllib.request.urlopen(req, timeout=5) as resp:
+                        pass
+                    # Back on main thread: update UI
+                    self.root.after(0, lambda: self._on_dir_updated(selected_dir))
+                except OSError:
+                    # Connection refused — server died externally, fall back to direct write
+                    try:
+                        from app.config import set_photos_dir
+                        set_photos_dir(selected_dir)
+                        self.root.after(0, lambda: self._on_dir_updated(selected_dir))
+                    except Exception as e2:
+                        self.root.after(0, lambda: self._on_dir_update_failed(str(e2)))
+                except Exception as e:
+                    self.root.after(0, lambda: self._on_dir_update_failed(str(e)))
+
+            threading.Thread(target=update_via_api, daemon=True).start()
+        else:
+            # Run the file write in a background thread too, for safety
+            def save_to_config():
+                try:
+                    from app.config import set_photos_dir
+                    set_photos_dir(selected_dir)
+                    self.root.after(0, lambda: self._on_dir_updated(selected_dir))
+                except Exception as e:
+                    self.root.after(0, lambda: self._on_dir_update_failed(str(e)))
+
+            threading.Thread(target=save_to_config, daemon=True).start()
+
+    def _on_dir_updated(self, selected_dir):
+        """Called on main thread after a successful directory update."""
+        self.btn_change_dir.configure(state="normal", text="Change...")
+        self.update_folder_label()
+        messagebox.showinfo("Success", f"Photos folder updated:\n{selected_dir}")
+
+    def _on_dir_update_failed(self, error_msg):
+        """Called on main thread after a failed directory update."""
+        self.btn_change_dir.configure(state="normal", text="Change...")
+        messagebox.showerror("Error", f"Failed to update folder:\n{error_msg}")
 
     def run_setup(self):
         """Execute elevated setup powershell command in background (window hidden)."""
@@ -344,7 +467,7 @@ class PhotoBridgeGUI:
             fg=TEXT_COLOR
         )
         # Lock uninstall button when server runs
-        self.btn_uninstall.configure(state="disabled")
+        self.btn_uninstall.configure(state="disabled", bg=BORDER_COLOR)
 
     def on_server_stopped(self):
         """Update interface when server finishes stopping."""
@@ -355,7 +478,7 @@ class PhotoBridgeGUI:
             fg=TEXT_MUTED
         )
         if self.firewall_active:
-            self.btn_uninstall.configure(state="normal")
+            self.btn_uninstall.configure(state="normal", bg=CARD_BG)
 
     def on_closing(self):
         """Clean closure of application, terminating background server tasks."""

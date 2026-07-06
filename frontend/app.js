@@ -9,18 +9,22 @@
 
 let state = {
     configured: false,
-    media: [],
-    albums: [],
+    media: [],           // all items loaded so far for current album
+    albums: [],          // album list from /api/albums [{name, count}]
+    loadedAlbums: {},    // cache: album_name -> {items:[], total:N, has_more:bool, loading:bool}
     currentTab: 'all-photos',
     searchQuery: '',
-    selectedAlbum: 'All Photos',
+    selectedAlbum: null,
     currentViewerIndex: 0,
     favorites: JSON.parse(localStorage.getItem('favorites') || '[]'),
     viewerActive: false,
     viewedMedia: [],
     inAlbumDetail: false,
-    pinRequired: false
+    pinRequired: false,
+    albumLoading: false   // true while initial album fetch is in progress
 };
+
+const PAGE_SIZE = 100; // items per page
 
 // ============================================================================
 // LAZY LOADING OBSERVER
@@ -89,9 +93,11 @@ async function initializeApp() {
             state.pinRequired = true;
         } else {
             try {
-                await loadMedia();
+                await loadAlbums();
+                // Lazy-load the All Photos folder immediately so the main grid works
+                await loadAlbumMedia('All Photos');
             } catch (err) {
-                console.warn('Initialization media fetch failed (likely bad PIN):', err);
+                console.warn('Initialization fetch failed:', err);
             }
         }
     }
@@ -151,22 +157,82 @@ async function setPhotosDir(path, pin = null) {
     return res.json();
 }
 
-async function loadMedia() {
-    const res = await authedFetch('/api/media');
-    const media = await res.json();
-    state.media = media;
-    state.viewedMedia = media;
+async function loadAlbums() {
+    const res = await authedFetch('/api/albums');
+    state.albums = await res.json();
+}
 
-    // Extract unique albums
-    const albumSet = new Set(media.map(m => m.album));
-    state.albums = Array.from(albumSet).sort();
+/**
+ * Lazy-load an album's first page from the API.
+ * Subsequent pages are loaded by loadMoreAlbumMedia().
+ */
+async function loadAlbumMedia(albumName) {
+    const cached = state.loadedAlbums[albumName];
+    if (cached && cached.items.length > 0) {
+        // Already have data — just make it the active set
+        state.media = cached.items;
+        state.viewedMedia = cached.items;
+        return;
+    }
+
+    state.albumLoading = true;
+    render();
+
+    try {
+        const url = `/api/media?album=${encodeURIComponent(albumName)}&offset=0&limit=${PAGE_SIZE}`;
+        const res = await authedFetch(url);
+        const data = await res.json();
+
+        state.loadedAlbums[albumName] = {
+            items: data.items,
+            total: data.total,
+            has_more: data.has_more,
+            loading: false
+        };
+        state.media = data.items;
+        state.viewedMedia = data.items;
+    } finally {
+        state.albumLoading = false;
+    }
+}
+
+/**
+ * Load the next page for the current album and append to the grid.
+ */
+async function loadMoreAlbumMedia(albumName) {
+    const cached = state.loadedAlbums[albumName];
+    if (!cached || cached.loading || !cached.has_more) return;
+
+    cached.loading = true;
+    const offset = cached.items.length;
+    const url = `/api/media?album=${encodeURIComponent(albumName)}&offset=${offset}&limit=${PAGE_SIZE}`;
+
+    try {
+        const res = await authedFetch(url);
+        const data = await res.json();
+
+        cached.items.push(...data.items);
+        cached.total = data.total;
+        cached.has_more = data.has_more;
+        state.media = cached.items;
+        state.viewedMedia = cached.items;
+
+        // Append new items to existing grid instead of full re-render
+        appendGridItems(data.items);
+    } finally {
+        cached.loading = false;
+    }
 }
 
 async function rescanMedia() {
     const res = await authedFetch('/api/rescan', { method: 'POST' });
     if (res.ok) {
-        await loadMedia();
+        state.loadedAlbums = {};
+        state.media = [];
+        await loadAlbums();
+        await loadAlbumMedia('All Photos');
         showToast('Photos rescanned');
+        render();
     }
 }
 
@@ -233,7 +299,8 @@ function renderPinScreen() {
             state.configured = config.configured;
 
             if (state.configured) {
-                await loadMedia();
+                await loadAlbums();
+                await loadAlbumMedia('All Photos');
             }
             render();
         } catch (err) {
@@ -289,7 +356,9 @@ function renderSetupScreen() {
                 localStorage.removeItem('pb_pin');
             }
             state.configured = true;
-            await loadMedia();
+            state.loadedAlbums = {};
+            await loadAlbums();
+            await loadAlbumMedia('All Photos');
             render();
         } catch (err) {
             div.querySelector('#errorMsg').textContent = err.message;
@@ -399,26 +468,8 @@ function renderMainApp() {
 }
 
 function getAlbumList() {
-    const albums = {};
-    state.media.forEach(m => {
-        const albumName = m.album;
-        if (!albums[albumName]) {
-            albums[albumName] = {
-                name: albumName,
-                count: 0,
-                coverMedia: null
-            };
-        }
-        albums[albumName].count++;
-        
-        const currentCover = albums[albumName].coverMedia;
-        if (!currentCover) {
-            albums[albumName].coverMedia = m;
-        } else if (currentCover.type === 'video' && m.type === 'image') {
-            albums[albumName].coverMedia = m;
-        }
-    });
-    return Object.values(albums).sort((a, b) => a.name.localeCompare(b.name));
+    // Use the album list fetched from /api/albums (has name + count from server)
+    return state.albums;
 }
 
 function setupPullToRefresh(container) {
@@ -440,23 +491,30 @@ function renderGrid(app) {
     const container = app.querySelector('#gridContainer');
     container.innerHTML = '';
 
-    // 1. ALBUMS GRID VIEW (Not in album detail yet)
+    // 1. ALBUMS GRID VIEW
     if (state.currentTab === 'albums' && !state.inAlbumDetail) {
         const albumList = getAlbumList();
         const albumsGrid = document.createElement('div');
         albumsGrid.className = 'albums-grid';
 
+        if (albumList.length === 0) {
+            const msg = document.createElement('div');
+            msg.style.cssText = 'padding:40px;text-align:center;color:#8e8e93;font-size:15px;';
+            msg.textContent = 'No albums found. Make sure a photos folder is configured.';
+            albumsGrid.appendChild(msg);
+        }
+
         albumList.forEach(album => {
             const card = document.createElement('div');
             card.className = 'album-card';
-            
+
+            // Cover: use first cached image from this album if available
+            const cached = state.loadedAlbums[album.name];
+            const coverMedia = cached ? cached.find(m => m.type === 'image') || cached[0] : null;
+
             let coverHtml = '';
-            if (album.coverMedia) {
-                if (album.coverMedia.type === 'image') {
-                    coverHtml = `<img src="/api/thumb/${album.coverMedia.id}?w=300" loading="lazy" alt="${album.name}">`;
-                } else {
-                    coverHtml = `<div class="video-cover-placeholder"><span class="play-icon">▶</span></div>`;
-                }
+            if (coverMedia && coverMedia.type === 'image') {
+                coverHtml = `<img src="/api/thumb/${coverMedia.id}?w=300" loading="lazy" alt="${album.name}">`;
             } else {
                 coverHtml = `<div class="video-cover-placeholder"><span class="play-icon">📷</span></div>`;
             }
@@ -471,9 +529,10 @@ function renderGrid(app) {
                 </div>
             `;
 
-            card.addEventListener('click', () => {
+            card.addEventListener('click', async () => {
                 state.selectedAlbum = album.name;
                 state.inAlbumDetail = true;
+                await loadAlbumMedia(album.name);
                 render();
             });
 
@@ -481,8 +540,6 @@ function renderGrid(app) {
         });
 
         container.appendChild(albumsGrid);
-        
-        // Add Pull-to-refresh listener for Album list as well
         setupPullToRefresh(container);
         return;
     }
@@ -502,14 +559,23 @@ function renderGrid(app) {
         container.appendChild(backBar);
     }
 
-    // 3. PHOTO GRID VIEW (For All Photos, Favorites, or Album Detail)
+    // 3. LOADING STATE (album fetch in progress)
+    if (state.albumLoading) {
+        const loader = document.createElement('div');
+        loader.style.cssText = 'padding:60px;text-align:center;color:#8e8e93;font-size:15px;';
+        loader.innerHTML = '<div class="spinner" style="margin:0 auto 16px;"></div>Loading photos...';
+        container.appendChild(loader);
+        return;
+    }
+
+    // 4. PHOTO GRID VIEW (For All Photos, Favorites, or Album Detail)
     let filteredMedia = state.media;
 
     // Filter by tab
     if (state.currentTab === 'favorites') {
-        filteredMedia = filteredMedia.filter(m => state.favorites.includes(m.id));
-    } else if (state.currentTab === 'albums') {
-        filteredMedia = filteredMedia.filter(m => m.album === state.selectedAlbum);
+        // Favorites: search across all cached loaded albums
+        const allLoaded = Object.values(state.loadedAlbums).flatMap(a => a.items || []);
+        filteredMedia = allLoaded.filter(m => state.favorites.includes(m.id));
     }
 
     // Filter by search
@@ -529,84 +595,182 @@ function renderGrid(app) {
         grouped[dateKey].push(media);
     });
 
-    // Render
+    // Render initial grid tiles
+    renderGridTiles(container, filteredMedia);
+
+    // Infinite scroll sentinel — loads next page when scrolled near bottom
+    const albumKey = state.currentTab === 'albums' ? state.selectedAlbum : 'All Photos';
+    const cached = state.loadedAlbums[albumKey];
+    if (cached && cached.has_more) {
+        const sentinel = document.createElement('div');
+        sentinel.id = 'scrollSentinel';
+        sentinel.style.cssText = 'height:60px;display:flex;align-items:center;justify-content:center;color:#8e8e93;font-size:13px;';
+        sentinel.textContent = 'Loading more...';
+        container.appendChild(sentinel);
+
+        const scrollObserver = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting) {
+                scrollObserver.disconnect();
+                loadMoreAlbumMedia(albumKey);
+            }
+        }, { rootMargin: '200px' });
+        scrollObserver.observe(sentinel);
+    } else if (cached && !cached.has_more && filteredMedia.length > 0) {
+        // Show total count at the bottom
+        const footer = document.createElement('div');
+        footer.style.cssText = 'padding:24px;text-align:center;color:#48484a;font-size:12px;';
+        footer.textContent = `${cached.total} items`;
+        container.appendChild(footer);
+    }
+
+    // Pull to refresh
+    setupPullToRefresh(container);
+}
+
+/**
+ * Create a single media tile element.
+ */
+function createMediaTile(media, filteredMedia) {
+    const tile = document.createElement('div');
+    tile.className = 'media-tile';
+
+    if (media.type === 'image') {
+        const img = document.createElement('img');
+        img.alt = media.filename;
+        const pin = localStorage.getItem('pb_pin') || '';
+        const pinParam = pin ? `&pin=${pin}` : '';
+        const observer = getLazyImageObserver();
+        if (observer) {
+            img.dataset.src = `/api/thumb/${media.id}?w=300${pinParam}`;
+            img.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"%3E%3C/svg%3E';
+            tile.appendChild(img);
+            observer.observe(img);
+        } else {
+            img.src = `/api/thumb/${media.id}?w=300${pinParam}`;
+            tile.appendChild(img);
+        }
+    } else {
+        const containerDiv = document.createElement('div');
+        containerDiv.className = 'video-tile-container';
+        const video = document.createElement('video');
+        video.className = 'video-thumbnail';
+        video.muted = true;
+        video.playsInline = true;
+        video.setAttribute('playsinline', '');
+        const pin = localStorage.getItem('pb_pin') || '';
+        const pinParamUrl = pin ? `?pin=${pin}` : '';
+        const observer = getLazyImageObserver();
+        if (observer) {
+            video.dataset.src = `/api/full/${media.id}${pinParamUrl}#t=0.1`;
+            video.preload = 'metadata';
+            containerDiv.appendChild(video);
+            observer.observe(video);
+        } else {
+            video.src = `/api/full/${media.id}${pinParamUrl}#t=0.1`;
+            video.preload = 'metadata';
+            containerDiv.appendChild(video);
+        }
+        const overlay = document.createElement('div');
+        overlay.className = 'video-overlay';
+        overlay.innerHTML = '<div class="play-icon">▶</div>';
+        containerDiv.appendChild(overlay);
+        tile.appendChild(containerDiv);
+    }
+
+    tile.addEventListener('click', () => {
+        state.currentViewerIndex = state.viewedMedia.indexOf(media);
+        if (state.currentViewerIndex < 0) state.currentViewerIndex = 0;
+        openViewer();
+    });
+    return tile;
+}
+
+/**
+ * Render grid tiles (date-grouped) into a container.
+ */
+function renderGridTiles(container, mediaList) {
+    const grouped = {};
+    mediaList.forEach(media => {
+        const date = new Date(media.date_taken);
+        const dateKey = date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        if (!grouped[dateKey]) grouped[dateKey] = [];
+        grouped[dateKey].push(media);
+    });
+
     Object.entries(grouped).forEach(([dateKey, medias]) => {
         const header = document.createElement('div');
         header.className = 'date-header';
+        header.dataset.dateKey = dateKey;
         header.textContent = dateKey;
         container.appendChild(header);
 
         const grid = document.createElement('div');
         grid.className = 'grid';
-
-        medias.forEach((media, idx) => {
-            const tile = document.createElement('div');
-            tile.className = 'media-tile';
-
-            if (media.type === 'image') {
-                const img = document.createElement('img');
-                img.alt = media.filename;
-
-                const pin = localStorage.getItem('pb_pin') || '';
-                const pinParam = pin ? `&pin=${pin}` : '';
-                const pinQuery = pin ? `?pin=${pin}` : '';
-
-                const observer = getLazyImageObserver();
-                if (observer) {
-                    img.dataset.src = `/api/thumb/${media.id}?w=300${pinParam}`;
-                    img.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"%3E%3C/svg%3E';
-                    tile.appendChild(img);
-                    observer.observe(img);
-                } else {
-                    img.src = `/api/thumb/${media.id}?w=300${pinParam}`;
-                    tile.appendChild(img);
-                }
-            } else {
-                const containerDiv = document.createElement('div');
-                containerDiv.className = 'video-tile-container';
-
-                const video = document.createElement('video');
-                video.className = 'video-thumbnail';
-                video.muted = true;
-                video.playsInline = true;
-                video.setAttribute('playsinline', '');
-
-                const pin = localStorage.getItem('pb_pin') || '';
-                const pinParamUrl = pin ? `?pin=${pin}` : '';
-
-                const observer = getLazyImageObserver();
-                if (observer) {
-                    video.dataset.src = `/api/full/${media.id}${pinParamUrl}#t=0.1`;
-                    video.preload = 'metadata';
-                    containerDiv.appendChild(video);
-                    observer.observe(video);
-                } else {
-                    video.src = `/api/full/${media.id}${pinParamUrl}#t=0.1`;
-                    video.preload = 'metadata';
-                    containerDiv.appendChild(video);
-                }
-
-                const overlay = document.createElement('div');
-                overlay.className = 'video-overlay';
-                overlay.innerHTML = '<div class="play-icon">▶</div>';
-                containerDiv.appendChild(overlay);
-
-                tile.appendChild(containerDiv);
-            }
-
-            tile.addEventListener('click', () => {
-                state.currentViewerIndex = filteredMedia.indexOf(media);
-                openViewer();
-            });
-
-            grid.appendChild(tile);
-        });
-
+        grid.dataset.dateKey = dateKey;
+        medias.forEach(media => grid.appendChild(createMediaTile(media, mediaList)));
         container.appendChild(grid);
     });
+}
 
-    // Pull to refresh
-    setupPullToRefresh(container);
+/**
+ * Append new items to the existing grid (called on infinite scroll load-more).
+ * Merges new items into existing date-group rows or creates new ones.
+ */
+function appendGridItems(newItems) {
+    const container = document.querySelector('#gridContainer');
+    if (!container) return;
+
+    // Remove sentinel and footer before appending
+    const old = container.querySelector('#scrollSentinel');
+    if (old) old.remove();
+    const footer = container.querySelector('[data-footer]');
+    if (footer) footer.remove();
+
+    const albumKey = state.currentTab === 'albums' ? state.selectedAlbum : 'All Photos';
+    const cached = state.loadedAlbums[albumKey];
+
+    newItems.forEach(media => {
+        const date = new Date(media.date_taken);
+        const dateKey = date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+        // Find existing grid row for this date
+        let grid = container.querySelector(`.grid[data-date-key="${CSS.escape(dateKey)}"]`);
+        if (!grid) {
+            // Create new date header + grid row
+            const header = document.createElement('div');
+            header.className = 'date-header';
+            header.dataset.dateKey = dateKey;
+            header.textContent = dateKey;
+            container.appendChild(header);
+            grid = document.createElement('div');
+            grid.className = 'grid';
+            grid.dataset.dateKey = dateKey;
+            container.appendChild(grid);
+        }
+        grid.appendChild(createMediaTile(media, state.viewedMedia));
+    });
+
+    // Re-attach sentinel or footer
+    if (cached && cached.has_more) {
+        const sentinel = document.createElement('div');
+        sentinel.id = 'scrollSentinel';
+        sentinel.style.cssText = 'height:60px;display:flex;align-items:center;justify-content:center;color:#8e8e93;font-size:13px;';
+        sentinel.textContent = 'Loading more...';
+        container.appendChild(sentinel);
+        const scrollObserver = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting) {
+                scrollObserver.disconnect();
+                loadMoreAlbumMedia(albumKey);
+            }
+        }, { rootMargin: '200px' });
+        scrollObserver.observe(sentinel);
+    } else {
+        const footer = document.createElement('div');
+        footer.setAttribute('data-footer', '1');
+        footer.style.cssText = 'padding:24px;text-align:center;color:#48484a;font-size:12px;';
+        footer.textContent = `${cached ? cached.total : state.media.length} items`;
+        container.appendChild(footer);
+    }
 }
 
 // ============================================================================

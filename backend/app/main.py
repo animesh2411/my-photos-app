@@ -156,24 +156,47 @@ async def api_select_folder(req: Request):
 # API Endpoints: Media
 # ============================================================================
 
+@app.get("/api/albums")
+async def api_get_albums(dependencies=Depends(verify_access_pin)):
+    """Get the list of albums (top-level subfolders) with their file counts."""
+    return media_index.get_albums()
+
+
 @app.get("/api/media")
-async def api_get_media(dependencies=Depends(verify_access_pin)):
-    """Get the full list of media objects (photos and videos)."""
-    return media_index.get_all_media()
+async def api_get_media(
+    album: str = None,
+    offset: int = 0,
+    limit: int = 100,
+    dependencies=Depends(verify_access_pin)
+):
+    """
+    Get media objects with pagination.
+    - ?album=<name>&offset=0&limit=100 → paginated results for that album (lazy scan on first call).
+    - Without album param → scans All Photos album.
+    Returns: {items: [...], total: int, has_more: bool, offset: int}
+    """
+    album_name = album if album else "All Photos"
+    return media_index.get_album_page(album_name, offset=offset, limit=limit)
 
 
 @app.post("/api/rescan")
-async def api_rescan(dependencies=Depends(verify_access_pin)):
-    """Rescan the photos directory and rebuild the index."""
+async def api_rescan(album: str = None, dependencies=Depends(verify_access_pin)):
+    """
+    Rescan the photos directory.
+    - If ?album=<name>, clears cache for that album only (fast).
+    - Without param, re-indexes all album folders (still fast — no file scanning).
+    """
     config = get_config()
     if not config["configured"]:
         raise HTTPException(
             status_code=400,
             detail="Photos directory not configured yet"
         )
-
+    if album:
+        media_index.rescan_album(album)
+        return {"album": album, "status": "cache cleared"}
     media_index.rescan()
-    return {"count": len(media_index.media)}
+    return {"albums": len(media_index._albums)}
 
 
 # ============================================================================
@@ -268,8 +291,8 @@ if os.path.exists(static_dir):
 @app.on_event("startup")
 async def startup_event():
     """
-    On startup:
-    1. Initialize media index with configured photos_dir
+    On startup: quickly index album folders only (no file scanning).
+    Actual file scanning happens lazily per-album on demand.
     """
     from app.config import ensure_config_exists
     ensure_config_exists()
@@ -277,7 +300,8 @@ async def startup_event():
     config = get_config()
     if config["configured"]:
         media_index.photos_dir = config["photos_dir"]
-        media_index.rescan()
+        # _index_albums() is fast — just reads folder names, no file stat
+        media_index._index_albums()
 
 
 
