@@ -45,41 +45,15 @@ class ConfigResponse(BaseModel):
 # Utility functions
 # ============================================================================
 
-def get_laptop_lan_ip() -> str:
-    """
-    Get the LAN IP address of this machine for local network access.
-    Returns "localhost" if unable to determine.
-    """
+def get_lan_ip() -> str:
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
-        # Connect to a public DNS to figure out our LAN IP
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
+        return s.getsockname()[0]
     except Exception:
-        return "localhost"
-
-
-def print_startup_banner():
-    """Print the startup banner with local and LAN URLs."""
-    port = get_port_from_env()
-    config = get_config()
-
-    lan_ip = get_laptop_lan_ip()
-
-    photos_folder_status = (
-        f"not yet configured — open the app and complete setup"
-        if not config["configured"]
-        else f"{config['photos_dir']}"
-    )
-
-    print("\n" + "=" * 70)
-    print("PhotoBridge running!")
-    print(f"Local:  http://localhost:{port}")
-    print(f"Phone:  http://{lan_ip}:{port}   (same WiFi)")
-    print(f"Photos folder: {photos_folder_status}")
-    print("=" * 70 + "\n")
+        return "127.0.0.1"
+    finally:
+        s.close()
 
 
 from fastapi import Request, Header, HTTPException, status
@@ -296,7 +270,6 @@ async def startup_event():
     """
     On startup:
     1. Initialize media index with configured photos_dir
-    2. Print startup banner with LAN URL
     """
     from app.config import ensure_config_exists
     ensure_config_exists()
@@ -305,8 +278,6 @@ async def startup_event():
     if config["configured"]:
         media_index.photos_dir = config["photos_dir"]
         media_index.rescan()
-
-    print_startup_banner()
 
 
 

@@ -43,7 +43,17 @@ graph TD
 * **`app/scanner.py`**: Recursively crawls the target folder to extract creation timestamps (parsing EXIF tags) and hashes unique base64 IDs. Features a $O(N)$ second-pass algorithm to detect Live Photo pairs by matching base image (`.HEIC`/`.JPG`) and video (`.MOV`/`.MP4`) filenames.
 * **`app/media.py`**: Serves media binaries. Utilizes Pillow and `pillow-heif` to generate on-the-fly JPEG thumbnails and runs an custom range-response generator to support HTML5 video scrubbing.
 
-### 2. Frontend Modules (PWA Shell / Vanilla CSS & JS)
+### 2. Windows Automation Launchers
+* **`gui_app.py`**: A native Tkinter-based desktop Control Center. Features a dark-themed status dashboard and custom hover control buttons.
+  * **Dynamic Wrapping & Resizing**: Listens to the window's `<Configure>` resize event to dynamically wrap status and URL labels based on the current window width (min-size locked to `440x500`).
+  * **UAC-Elevated Background Tasks**: Executes UAC-elevated PowerShell scripts to install/uninstall firewall rules with single quote escaping (`''`) inside background threads. Employs `Start-Process -Verb RunAs` combined with `-WindowStyle Hidden` so that **no command prompt or terminal window opens**.
+  * **Windowless Server Spawning**: Launches the Python server subprocess (`run.py`) passing `creationflags=subprocess.CREATE_NO_WINDOW` on Windows to run the server completely hidden in the background without spawning any black terminal windows. Automatically drains standard outputs to avoid process buffer locks.
+* **`run_control_center.bat`**: Double-clickable launcher script. Sets up and activates the virtual environment `.venv`, verifies dependencies, and invokes `gui_app.py` using `pythonw.exe` to suppress the background launcher terminal.
+* **`run_app.bat`**: Standard CLI launcher script. Automatically queries the firewall using `netsh` (non-admin friendly and instant) to check if Port 8000 is open, printing a one-line warning if it's missing, then starting `run.py`.
+* **`setup.bat`**: Legacy standalone admin setup script. Self-elevates to Administrator via UAC and creates a Port 8000 inbound TCP firewall rule scoped strictly to the `Private` network profile (blocking exposure on public Wi-Fi).
+* **`uninstall.bat`**: Legacy standalone cleanup script. Self-elevates to Administrator via UAC and deletes the Port 8000 inbound firewall rule.
+
+### 3. Frontend Modules (PWA Shell / Vanilla CSS & JS)
 
 * **`static/index.html`**: Serve template shell optimized for iOS Safari viewports (`viewport-fit=cover`).
 * **`static/app.js`**: Contains the state machine (`state`), image lazy-loader (`IntersectionObserver`), custom REST request wrappers (`authedFetch`), and layouts (date sections, full-screen slider, folder list).

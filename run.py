@@ -10,7 +10,7 @@ import uvicorn
 import time
 import sys
 from app.config import get_port_from_env, get_config
-from app.main import get_laptop_lan_ip
+from app.main import get_lan_ip
 
 class UvicornServerThread(threading.Thread):
     def __init__(self, host: str, port: int):
@@ -37,7 +37,7 @@ class UvicornServerThread(threading.Thread):
 if __name__ == "__main__":
     port = get_port_from_env()
     config = get_config()
-    lan_ip = get_laptop_lan_ip()
+    lan_ip = get_lan_ip()
 
     # Create and start server in background thread
     server_thread = UvicornServerThread("0.0.0.0", port)
@@ -53,7 +53,7 @@ if __name__ == "__main__":
     )
 
     print("\n" + "=" * 70)
-    print("PhotoBridge Server is RUNNING!")
+    print("PhotoBridge running!")
     print(f"Local:  http://localhost:{port}")
     print(f"Phone:  http://{lan_ip}:{port}   (same WiFi)")
     print(f"Photos folder: {photos_folder_status}")

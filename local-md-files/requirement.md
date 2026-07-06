@@ -60,8 +60,13 @@ photobridge/
   requirements.txt
   run.py                  # entry point: starts uvicorn in a background thread
   run_app.bat             # double-clickable batch launcher for non-technical users
+  gui_app.py              # desktop control center GUI app (Tkinter)
+  run_control_center.bat  # double-clickable launcher for the GUI control center
+  setup.bat               # firewall setup batch script (admin)
+  uninstall.bat           # firewall removal batch script (admin)
   README.md                # setup + run instructions
   CONTRIBUTING.md          # contribution guidelines
+  ARCHITECTURE.md          # system architecture walkthrough
   .github/
     CODEOWNERS             # github owners configuration file
 ```
@@ -271,13 +276,10 @@ so the phone can reach it over LAN.
 
 1. Prerequisites: Python 3.11+ installed on Windows.
 2. `pip install -r requirements.txt`.
-3. How to run: Double-click `run_app.bat` (automatically installs deps and runs server) or run `python run.py`.
-4. How to find the laptop's LAN IP (`ipconfig`, look for IPv4 address under
-   the active WiFi adapter).
-5. How to open it on iPhone Safari, complete the one-time setup screen by
-   entering the full path to an existing folder on the laptop (e.g.
-   `C:\Users\you\Pictures`), and "Add to Home Screen".
-6. How to change the folder later via the gear icon in the app.
+3. How to run: Double-click `run_control_center.bat` to launch the native desktop Control Center (runs without background console popups, supports one-time firewall setup, checks status, and starts/stops the server invisibly). Day-to-day console execution can also be started with `run_app.bat` or `python run.py`.
+4. Dynamic LAN IP detection and startup banner instructions.
+5. How to open it on iPhone Safari, complete the one-time setup screen by entering the full path to an existing folder on the laptop (e.g. `C:\Users\you\Pictures`), configuring an optional Access PIN, and "Add to Home Screen".
+6. How to change the folder or security PIN later via the gear icon settings modal in the app.
 7. A short note that the laptop must stay awake and on the same WiFi network
    for the phone to reach it, and a pointer to using Task Scheduler or NSSM
    if they want it running continuously as a background service.

@@ -159,11 +159,16 @@ my-photos-app/
 │   └── CODEOWNERS            (GitHub repository ownership config)
 ├── run.py                    (entry point)
 ├── run_app.bat               (windows server launcher)
+├── gui_app.py                (desktop GUI control center dashboard)
+├── run_control_center.bat    (windows launch batch script for the GUI)
+├── setup.bat                 (admin setup script - firewall rule creator)
+├── uninstall.bat             (admin cleanup script - firewall rule remover)
 ├── config.json               (created on first run)
 ├── requirements.txt          (dependencies)
 ├── .gitignore               (excludes config.json)
 ├── README.md                (full documentation)
 ├── CONTRIBUTING.md          (contribution guidelines)
+├── ARCHITECTURE.md          (architecture design overview)
 └── test_api.py              (API tests)
 ```
 
@@ -231,6 +236,13 @@ Any connections can be locked behind a custom Access PIN:
 ### 3. PWA Interface Redesigns
 - **Albums Tab Grid**: Replaced the horizontal chip bar with a full-screen, grid-based card directory displaying folder names, total items, and dynamic cover photos (the first image in the subfolder). Includes interactive scale tap feedback and a sticky back navigation header.
 - **Circular SVG Viewer Controls**: Upgraded text icon viewer buttons to premium circular vector SVG elements with custom iOS-red favorite toggles and tap scale transformations.
+
+### 4. Desktop Control Center GUI
+- **Tkinter Dashboard**: Features [gui_app.py](file:///f:/CodeX/PyCharmProjects/my-photos-app/gui_app.py) which renders a premium dark-themed dashboard. It polls firewall and server statuses continuously and enables/disables setup and run actions dynamically based on configuration states.
+- **Windowless Console Hiding**: Executes the server subprocess passing the `creationflags=subprocess.CREATE_NO_WINDOW` parameter on Windows to prevent a black command prompt terminal from showing or staying open.
+- **Background UAC Elevation**: Triggers elevated PowerShell firewall setups using `Start-Process powershell -Verb RunAs -WindowStyle Hidden` and double-single quote escaping (`''PhotoBridge Port 8000''`) inside background threads, yielding a completely terminal-free, UI-only setup flow.
+- **Dynamic Text Wrapping**: Employs a custom `<Configure>` event listener to dynamically resize the Status Card frame and wrap the connection URLs cleanly to match any window dimensions (min-size locked to `440x500`).
+- **Clean double-clickable launch**: Bundles a launcher [run_control_center.bat](file:///f:/CodeX/PyCharmProjects/my-photos-app/run_control_center.bat) which initiates the venv and runs the GUI using `pythonw.exe` to suppress the command prompt wrapper window.
 
 ### Add More Image Formats
 In `app/scanner.py`, add to `IMAGE_EXTENSIONS`:

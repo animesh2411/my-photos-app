@@ -258,6 +258,12 @@ Enhance the viewer to show EXIF data (camera, lens, ISO, etc.) by parsing image 
 - **Albums Card Grid**: Redesigned the Albums tab to show a full-screen, grid-based card directory displaying folder names, total items, and dynamic cover photos (the first image in the subfolder). Details views open inside album subnavigation with a sticky back header.
 - **Circular SVG Viewer Controls**: Upgraded text icon buttons to premium circular vector SVG elements with custom iOS-red favorite toggles and tap scale transformations.
 
+### Desktop Control Center GUI (Windows Launcher)
+- **Tkinter Dashboard**: Features a native [gui_app.py](file:///f:/CodeX/PyCharmProjects/my-photos-app/gui_app.py) app providing status card widgets, live connection URL strings, and dynamic layout resizing / text wrapping controls.
+- **Console-Free Execution**: Spawns Python uvicorn server in background processes using `creationflags=subprocess.CREATE_NO_WINDOW` on Windows, keeping execution completely hidden.
+- **Background UAC Elevation**: Uses `Start-Process powershell -Verb RunAs -WindowStyle Hidden` and escaped single quoting to run administrative setups and removals invisibly in background threads with zero Command Prompt windows showing on screen.
+- **Double-Click Launcher**: Includes [run_control_center.bat](file:///f:/CodeX/PyCharmProjects/my-photos-app/run_control_center.bat) which initiates the virtual environment and starts the GUI dashboard using `pythonw.exe` to suppress the command prompt wrapper window.
+
 ## Directory Structure at Runtime
 
 After first run:
@@ -269,11 +275,16 @@ my-photos-app/
 │   └── CODEOWNERS            # GitHub repository ownership config
 ├── run.py                    # Entry point
 ├── run_app.bat               # Windows server launcher
+├── gui_app.py                # Desktop control center GUI (Tkinter)
+├── run_control_center.bat    # Windows launcher batch script for the GUI
+├── setup.bat                 # Admin firewall setup script
+├── uninstall.bat             # Admin firewall cleanup script
 ├── requirements.txt
 ├── config.json              # ← Created by app (machine-specific)
 ├── .gitignore               # ← Excludes config.json
 ├── README.md                # Full user guide
-└── CONTRIBUTING.md          # Contribution guidelines
+├── CONTRIBUTING.md          # Contribution guidelines
+└── ARCHITECTURE.md          # System architecture design overview
 ```
 
 ## Next Steps for User

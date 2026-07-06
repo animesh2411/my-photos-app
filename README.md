@@ -2,8 +2,14 @@
 
 PhotoBridge is a local web app that runs on a Windows laptop and lets an iPhone on the same WiFi network browse the laptop's photo/video folder in an interface styled like Apple Photos. It's a Progressive Web App (PWA) with no login required — just type your folder path on the setup screen.
 
+## Documentation
+
+- 🗺️ **[System Architecture](file:///f:/CodeX/PyCharmProjects/my-photos-app/ARCHITECTURE.md)**: Details modules, data flow, and security design.
+- 🤝 **[Contributing Guidelines](file:///f:/CodeX/PyCharmProjects/my-photos-app/CONTRIBUTING.md)**: Describes codebase structure, coding guidelines, and testing.
+
 ## Features
 
+- **🎛️ Windows Control Center** — Desktop GUI dashboard to setup firewall rules, start/stop the server, and monitor connection URLs natively.
 - **📱 No App Installation** — Works as a Progressive Web App (PWA) added to home screen via Safari
 - **📸 Grid View** — Date-grouped grid just like Apple Photos, with lazy loading
 - **🎥 Video Support** — Full-screen viewer with scrubbing and seeking support
@@ -347,10 +353,14 @@ photobridge/
 │   └── CODEOWNERS       # github repository ownership config
 ├── run.py               # entry point
 ├── run_app.bat          # windows server launcher
+├── gui_app.py           # desktop control center GUI (Tkinter)
+├── run_control_center.bat # double-clickable launcher for the GUI Control Center
+├── setup.bat            # admin setup script (adds private network firewall rule)
+├── uninstall.bat        # admin cleanup script (removes firewall rule)
 ├── requirements.txt
 ├── config.json          # generated on first run
 ├── README.md
-└── CONTRIBUTING.md
+├── CONTRIBUTING.md
 └── ARCHITECTURE.md
 ```
 

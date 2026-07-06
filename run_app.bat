@@ -44,6 +44,14 @@ if %errorlevel% neq 0 (
 )
 
 echo.
+echo [SERVER] Checking firewall configuration...
+netsh advfirewall firewall show rule name="PhotoBridge Port 8000" >nul 2>&1
+if %errorlevel% neq 0 (
+    echo [REMINDER] Firewall rule is missing. If other devices cannot connect, please run setup.bat as Administrator.
+) else (
+    echo [OK] Firewall rule for Port 8000 is active.
+)
+echo.
 echo [SERVER] Starting PhotoBridge server...
 echo.
 
