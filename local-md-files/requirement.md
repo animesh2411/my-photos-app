@@ -64,9 +64,14 @@ photobridge/
   run_control_center.bat  # double-clickable launcher for the GUI control center
   setup.bat               # firewall setup batch script (admin)
   uninstall.bat           # firewall removal batch script (admin)
-  README.md                # setup + run instructions
-  CONTRIBUTING.md          # contribution guidelines
-  ARCHITECTURE.md          # system architecture walkthrough
+  README.md                # simplified user guide
+  local-md-files/          # developers guide documents
+    requirement.md         # specifications
+    IMPLEMENTATION.md      # logs
+    COMPLETION_REPORT.md   # status
+    ARCHITECTURE.md        # designs
+    CONTRIBUTING.md        # guidelines
+    developer_guide.md     # troubleshooting and advanced manuals
   .github/
     CODEOWNERS             # github owners configuration file
 ```

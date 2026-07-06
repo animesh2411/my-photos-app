@@ -166,10 +166,15 @@ my-photos-app/
 ├── config.json               (created on first run)
 ├── requirements.txt          (dependencies)
 ├── .gitignore               (excludes config.json)
-├── README.md                (full documentation)
-├── CONTRIBUTING.md          (contribution guidelines)
-├── ARCHITECTURE.md          (architecture design overview)
-└── test_api.py              (API tests)
+├── README.md                (simplified user guide)
+├── test_api.py              (API tests)
+└── local-md-files/           (developer documentation folder)
+    ├── requirement.md       (functional specifications)
+    ├── IMPLEMENTATION.md    (implementation steps log)
+    ├── COMPLETION_REPORT.md (final completion status)
+    ├── ARCHITECTURE.md      (system module and data architectures)
+    ├── CONTRIBUTING.md      (code standards and repo owners)
+    └── developer_guide.md   (manual operations and troubleshooting)
 ```
 
 ## 🎯 Testing Checklist

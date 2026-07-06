@@ -282,9 +282,14 @@ my-photos-app/
 ├── requirements.txt
 ├── config.json              # ← Created by app (machine-specific)
 ├── .gitignore               # ← Excludes config.json
-├── README.md                # Full user guide
-├── CONTRIBUTING.md          # Contribution guidelines
-└── ARCHITECTURE.md          # System architecture design overview
+├── README.md                # Simplified user guide
+└── local-md-files/           # Developer documentation folder
+    ├── requirement.md       # Functional specs
+    ├── IMPLEMENTATION.md    # Logs details
+    ├── COMPLETION_REPORT.md # Completion status
+    ├── ARCHITECTURE.md      # Modules breakdown
+    ├── CONTRIBUTING.md      # Guidelines
+    └── developer_guide.md   # Troubleshooting and manuals
 ```
 
 ## Next Steps for User
