@@ -47,7 +47,7 @@ netsh advfirewall firewall add rule name="PhotoBridge Port 8000" dir=in action=a
 
 ### Standard Start:
 ```bash
-python run.py
+python backend/run.py
 ```
 
 ### Specifying a Custom Port:
@@ -55,12 +55,12 @@ To override the default port `8000`:
 * **Windows Command Prompt (CMD)**:
   ```cmd
   set PORT=9000
-  python run.py
+  python backend/run.py
   ```
 * **PowerShell**:
   ```powershell
   $env:PORT = 9000
-  python run.py
+  python backend/run.py
   ```
 
 ---
@@ -95,9 +95,9 @@ curl -r 0-999 -H "X-PhotoBridge-PIN: 1234" http://localhost:8000/api/full/YOUR_V
 
 ## ⚙️ Low-Level Module Architecture
 
-* **`gui_app.py`**: Tkinter UI wrapper. Monitors processes, wraps PowerShell calls with hidden window flags (`Start-Process -WindowStyle Hidden`), and handles window state events (`<Configure>`) to size text layout containers.
-* **`app/scanner.py`**: Handles directory walks. It parses EXIF tags using Pillow's `_getexif()` to query timestamp fields `36867` (DateTimeOriginal) and `306` (DateTime). If those fields are missing, it falls back to filesystem `mtime` records.
-* **`app/media.py`**: Stream responses. Sets up chunked generators for serving standard media files and supports custom header range streaming (returning standard `206 Partial Content` with `Content-Range` bounds).
+* **`desktop_gui/gui_app.py`**: Tkinter UI wrapper. Monitors processes, wraps PowerShell calls with hidden window flags (`Start-Process -WindowStyle Hidden`), and handles window state events (`<Configure>`) to size text layout containers.
+* **`backend/app/scanner.py`**: Handles directory walks. It parses EXIF tags using Pillow's `_getexif()` to query timestamp fields `36867` (DateTimeOriginal) and `306` (DateTime). If those fields are missing, it falls back to filesystem `mtime` records.
+* **`backend/app/media.py`**: Stream responses. Sets up chunked generators for serving standard media files and supports custom header range streaming (returning standard `206 Partial Content` with `Content-Range` bounds).
 
 ---
 

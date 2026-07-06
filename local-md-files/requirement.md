@@ -42,26 +42,31 @@ manually.
 
 ```
 photobridge/
-  app/
-    main.py            # FastAPI app, routes
-    scanner.py          # filesystem walk + EXIF date extraction + in-memory index
-    media.py             # thumbnail generation, range-request file streaming
-    config.py            # reads/writes config.json (photos_dir, port)
-  static/
-    index.html
-    style.css
-    app.js
-    manifest.json
-    sw.js
-    icons/
+  backend/                 # backend code
+    app/                  # FastAPI app package
+      main.py            # FastAPI app, routes
+      scanner.py          # filesystem walk + EXIF date extraction + in-memory index
+      media.py             # thumbnail generation, range-request file streaming
+      config.py            # reads/writes config.json (photos_dir, port)
+    run.py                # entry point: starts uvicorn in a background thread
+    test_api.py           # API test suite
+    diagnose.py           # API diagnostics utility script
+    create_icons.py       # PWA icons generator script
+  desktop_gui/             # desktop GUI controller app
+    gui_app.py            # desktop control center GUI app (Tkinter)
+    icon.ico              # multi-size Windows icon file generated from PWA logo
+  frontend/                # PWA frontend static assets
+    index.html            # PWA UI HTML shell
+    style.css             # Apple Photos styling sheet
+    app.js                # frontend state engine script
+    manifest.json         # PWA app registry
+    sw.js                 # PWA service worker asset caching
+    icons/                # cached home screen icons folder
       icon-180.png
       icon-512.png
   config.json              # created on first run once a folder is chosen; not committed to git
   requirements.txt
-  run.py                  # entry point: starts uvicorn in a background thread
-  gui_app.py              # desktop control center GUI app (Tkinter)
   run_control_center.bat  # double-clickable launcher for the GUI control center (root)
-  icon.ico                # multi-size Windows icon file generated from PWA logo
   local-batch-files/       # CLI launchers and setup batch files
     run_app.bat           # double-clickable CLI server launcher
     setup.bat             # admin UAC firewall rule installation launcher

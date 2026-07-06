@@ -269,14 +269,17 @@ Enhance the viewer to show EXIF data (camera, lens, ISO, etc.) by parsing image 
 After first run:
 ```
 my-photos-app/
-├── app/                      # Code (unchanged)
-├── static/                   # Frontend (unchanged)
-├── .github/
-│   └── CODEOWNERS            # GitHub repository ownership config
-├── run.py                    # Entry point
-├── gui_app.py                # Desktop control center GUI (Tkinter)
+├── backend/                  # Backend code modules
+│   ├── app/                  # FastAPI app package
+│   ├── run.py                # Server entry point
+│   ├── test_api.py           # API testing script
+│   ├── diagnose.py           # Diagnostics utility
+│   └── create_icons.py       # PWA icons generator
+├── frontend/                 # PWA frontend static assets
+├── desktop_gui/              # Desktop GUI controller app
+│   ├── gui_app.py            # Laptop controller GUI (Tkinter)
+│   └── icon.ico              # Windows app shortcut icon
 ├── run_control_center.bat    # Windows launcher batch script for the GUI (root)
-├── icon.ico                  # Multi-size Windows icon file generated from PWA logo
 ├── local-batch-files/         # CLI launchers and legacy setup scripts
 │   ├── run_app.bat           # CLI server launcher
 │   ├── setup.bat             # Admin firewall setup script

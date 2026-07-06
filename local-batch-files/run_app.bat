@@ -57,7 +57,7 @@ echo [SERVER] Starting PhotoBridge server...
 echo.
 
 :: Run the server
-python run.py
+python backend/run.py
 
 :: If python finishes (e.g. user stopped it), clean up and exit
 echo.

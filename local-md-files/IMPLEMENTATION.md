@@ -141,27 +141,30 @@ The app creates `config.json` on first run:
 
 ```
 my-photos-app/
-├── app/
-│   ├── __init__.py           (package marker)
-│   ├── config.py             (config management)
-│   ├── scanner.py            (filesystem scanning)
-│   ├── main.py               (FastAPI routes)
-│   └── media.py              (thumbnail & streaming)
-├── static/
-│   ├── index.html            (PWA HTML)
-│   ├── app.js                (frontend logic)
-│   ├── style.css             (dark theme)
+├── backend/
+│   ├── app/
+│   │   ├── __init__.py       (package marker)
+│   │   ├── config.py         (config management)
+│   │   ├── scanner.py        (filesystem scanning)
+│   │   ├── main.py           (FastAPI routes)
+│   │   └── media.py          (thumbnail & streaming)
+│   ├── run.py                (entry point)
+│   ├── test_api.py          (API test suite)
+│   ├── diagnose.py          (API diagnostics script)
+│   └── create_icons.py      (PWA icons builder script)
+├── frontend/
+│   ├── index.html            (PWA HTML shell)
+│   ├── app.js                (frontend logic script)
+│   ├── style.css             (Apple Photos styles)
 │   ├── manifest.json         (PWA manifest)
 │   ├── sw.js                 (service worker)
 │   └── icons/
 │       ├── icon-180.png      (home screen icon)
 │       └── icon-512.png      (home screen icon large)
-├── .github/
-│   └── CODEOWNERS            (GitHub repository ownership config)
-├── run.py                    (entry point)
-├── gui_app.py                (desktop GUI control center dashboard)
+├── desktop_gui/
+│   ├── gui_app.py            (desktop GUI control center dashboard)
+│   └── icon.ico              (multi-size Windows icon file generated from PWA logo)
 ├── run_control_center.bat    (windows launch batch script for the GUI at root)
-├── icon.ico                  (multi-size Windows icon file generated from PWA logo)
 ├── local-batch-files/         (CLI launchers and legacy scripts folder)
 │   ├── run_app.bat           (CLI server launcher)
 │   ├── setup.bat             (legacy firewall config)
@@ -170,7 +173,6 @@ my-photos-app/
 ├── requirements.txt          (dependencies)
 ├── .gitignore               (excludes config.json)
 ├── README.md                (simplified user guide)
-├── test_api.py              (API tests)
 └── local-md-files/           (developer documentation folder)
     ├── requirement.md       (functional specifications)
     ├── IMPLEMENTATION.md    (implementation steps log)

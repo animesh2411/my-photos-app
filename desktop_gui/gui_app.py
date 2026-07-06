@@ -7,6 +7,15 @@ import time
 import tkinter as tk
 from tkinter import messagebox
 
+# Setup system paths for backend imports
+script_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(script_dir)
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+backend_path = os.path.join(project_root, "backend")
+if backend_path not in sys.path:
+    sys.path.insert(0, backend_path)
+
 # Design Tokens (Harmonious Dark Theme)
 BG_COLOR = "#000000"
 CARD_BG = "#1c1c1e"
@@ -279,7 +288,7 @@ class PhotoBridgeGUI:
                         creationflags = subprocess.CREATE_NO_WINDOW
 
                     self.server_process = subprocess.Popen(
-                        [python_exe, "run.py"],
+                        [python_exe, os.path.join("backend", "run.py")],
                         stdin=subprocess.PIPE,
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE,
@@ -363,7 +372,8 @@ class PhotoBridgeGUI:
 if __name__ == "__main__":
     # Ensure working directory is the project directory
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    os.chdir(script_dir)
+    project_root = os.path.dirname(script_dir)
+    os.chdir(project_root)
 
     root = tk.Tk()
     app = PhotoBridgeGUI(root)
