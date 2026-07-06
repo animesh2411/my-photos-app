@@ -10,7 +10,7 @@ For high-level system details, see:
 
 ## 🛠️ Manual Installation & Packages
 
-If you do not want to use the automated `run_control_center.bat` or `run_app.bat` launchers, you can set up Python dependencies manually:
+If you do not want to use the automated `run_control_center.bat` or `local-batch-files/run_app.bat` launchers, you can set up Python dependencies manually:
 
 ```bash
 pip install -r requirements.txt

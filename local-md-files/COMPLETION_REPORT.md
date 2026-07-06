@@ -77,7 +77,7 @@ my-photos-app/
 ## Quick Start
 
 ### 1. Start the Server (Double-Click Launcher - Recommended)
-Simply **double-click the `run_app.bat` file** in the project folder. This will automatically check your Python environment, create an isolated virtual environment (`.venv`), install dependencies, and run the server.
+Simply **double-click the `local-batch-files/run_app.bat` file** in the project folder. This will automatically check your Python environment, create an isolated virtual environment (`.venv`), install dependencies, and run the server.
 
 ### 2. Start the Server (Manual Command Line)
 If you prefer running manual commands:
@@ -274,11 +274,12 @@ my-photos-app/
 ├── .github/
 │   └── CODEOWNERS            # GitHub repository ownership config
 ├── run.py                    # Entry point
-├── run_app.bat               # Windows server launcher
 ├── gui_app.py                # Desktop control center GUI (Tkinter)
-├── run_control_center.bat    # Windows launcher batch script for the GUI
-├── setup.bat                 # Admin firewall setup script
-├── uninstall.bat             # Admin firewall cleanup script
+├── run_control_center.bat    # Windows launcher batch script for the GUI (root)
+├── local-batch-files/         # CLI launchers and legacy setup scripts
+│   ├── run_app.bat           # CLI server launcher
+│   ├── setup.bat             # Admin firewall setup script
+│   └── uninstall.bat         # Admin firewall cleanup script
 ├── requirements.txt
 ├── config.json              # ← Created by app (machine-specific)
 ├── .gitignore               # ← Excludes config.json

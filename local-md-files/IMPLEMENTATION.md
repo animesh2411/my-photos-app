@@ -40,11 +40,12 @@ PhotoBridge has been fully implemented according to the spec. Here's what's work
 
 ### Infrastructure
 - ✅ **run.py** — Entry point that starts uvicorn on 0.0.0.0 in a background thread
-- ✅ **run_app.bat** — Double-clickable batch launcher for non-technical users
+- ✅ **local-batch-files/run_app.bat** — Double-clickable batch launcher for non-technical users
 - ✅ **requirements.txt** — All dependencies listed
 - ✅ **.gitignore** — config.json excluded from version control
 - ✅ **README.md** — Complete documentation with setup & usage instructions
 - ✅ **config.json** — Auto-created on first run
+- ✅ **test_api.py** — API test suite
 
 ## 🚀 Current Status
 
@@ -68,7 +69,7 @@ Sample image: test-photo.jpg
 ## 📋 Next Steps for Users
 
 1. **Run the server (Recommended)**:
-   - Double-click **`run_app.bat`** in the project folder. It will configure Python, install dependencies, and start the app automatically.
+   - Double-click **`run_control_center.bat`** in the project folder root to launch the native desktop Control Center. Day-to-day command-line starts can also be run using **`local-batch-files/run_app.bat`**.
    - Alternatively, use the command line:
      ```bash
      python run.py
@@ -158,11 +159,12 @@ my-photos-app/
 ├── .github/
 │   └── CODEOWNERS            (GitHub repository ownership config)
 ├── run.py                    (entry point)
-├── run_app.bat               (windows server launcher)
 ├── gui_app.py                (desktop GUI control center dashboard)
-├── run_control_center.bat    (windows launch batch script for the GUI)
-├── setup.bat                 (admin setup script - firewall rule creator)
-├── uninstall.bat             (admin cleanup script - firewall rule remover)
+├── run_control_center.bat    (windows launch batch script for the GUI at root)
+├── local-batch-files/         (CLI launchers and legacy scripts folder)
+│   ├── run_app.bat           (CLI server launcher)
+│   ├── setup.bat             (legacy firewall config)
+│   └── uninstall.bat         # (legacy firewall cleanup)
 ├── config.json               (created on first run)
 ├── requirements.txt          (dependencies)
 ├── .gitignore               (excludes config.json)

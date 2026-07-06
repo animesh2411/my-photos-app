@@ -59,11 +59,12 @@ photobridge/
   config.json              # created on first run once a folder is chosen; not committed to git
   requirements.txt
   run.py                  # entry point: starts uvicorn in a background thread
-  run_app.bat             # double-clickable batch launcher for non-technical users
   gui_app.py              # desktop control center GUI app (Tkinter)
-  run_control_center.bat  # double-clickable launcher for the GUI control center
-  setup.bat               # firewall setup batch script (admin)
-  uninstall.bat           # firewall removal batch script (admin)
+  run_control_center.bat  # double-clickable launcher for the GUI control center (root)
+  local-batch-files/       # CLI launchers and setup batch files
+    run_app.bat           # double-clickable CLI server launcher
+    setup.bat             # admin UAC firewall rule installation launcher
+    uninstall.bat         # admin UAC firewall rule cleanup launcher
   README.md                # simplified user guide
   local-md-files/          # developers guide documents
     requirement.md         # specifications
@@ -281,7 +282,7 @@ so the phone can reach it over LAN.
 
 1. Prerequisites: Python 3.11+ installed on Windows.
 2. `pip install -r requirements.txt`.
-3. How to run: Double-click `run_control_center.bat` to launch the native desktop Control Center (runs without background console popups, supports one-time firewall setup, checks status, and starts/stops the server invisibly). Day-to-day console execution can also be started with `run_app.bat` or `python run.py`.
+3. How to run: Double-click `run_control_center.bat` to launch the native desktop Control Center (runs without background console popups, supports one-time firewall setup, checks status, and starts/stops the server invisibly). Day-to-day console execution can also be started with `local-batch-files/run_app.bat` or `python run.py`.
 4. Dynamic LAN IP detection and startup banner instructions.
 5. How to open it on iPhone Safari, complete the one-time setup screen by entering the full path to an existing folder on the laptop (e.g. `C:\Users\you\Pictures`), configuring an optional Access PIN, and "Add to Home Screen".
 6. How to change the folder or security PIN later via the gear icon settings modal in the app.

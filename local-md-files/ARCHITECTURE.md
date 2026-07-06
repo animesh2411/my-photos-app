@@ -49,9 +49,9 @@ graph TD
   * **UAC-Elevated Background Tasks**: Executes UAC-elevated PowerShell scripts to install/uninstall firewall rules with single quote escaping (`''`) inside background threads. Employs `Start-Process -Verb RunAs` combined with `-WindowStyle Hidden` so that **no command prompt or terminal window opens**.
   * **Windowless Server Spawning**: Launches the Python server subprocess (`run.py`) passing `creationflags=subprocess.CREATE_NO_WINDOW` on Windows to run the server completely hidden in the background without spawning any black terminal windows. Automatically drains standard outputs to avoid process buffer locks.
 * **`run_control_center.bat`**: Double-clickable launcher script. Sets up and activates the virtual environment `.venv`, verifies dependencies, and invokes `gui_app.py` using `pythonw.exe` to suppress the background launcher terminal.
-* **`run_app.bat`**: Standard CLI launcher script. Automatically queries the firewall using `netsh` (non-admin friendly and instant) to check if Port 8000 is open, printing a one-line warning if it's missing, then starting `run.py`.
-* **`setup.bat`**: Legacy standalone admin setup script. Self-elevates to Administrator via UAC and creates a Port 8000 inbound TCP firewall rule scoped strictly to the `Private` network profile (blocking exposure on public Wi-Fi).
-* **`uninstall.bat`**: Legacy standalone cleanup script. Self-elevates to Administrator via UAC and deletes the Port 8000 inbound firewall rule.
+* **`local-batch-files/run_app.bat`**: Standard CLI launcher script. Automatically queries the firewall using `netsh` (non-admin friendly and instant) to check if Port 8000 is open, printing a one-line warning if it's missing, then starting `run.py`.
+* **`local-batch-files/setup.bat`**: Legacy standalone admin setup script. Self-elevates to Administrator via UAC and creates a Port 8000 inbound TCP firewall rule scoped strictly to the `Private` network profile (blocking exposure on public Wi-Fi).
+* **`local-batch-files/uninstall.bat`**: Legacy standalone cleanup script. Self-elevates to Administrator via UAC and deletes the Port 8000 inbound firewall rule.
 
 ### 3. Frontend Modules (PWA Shell / Vanilla CSS & JS)
 
