@@ -61,6 +61,7 @@ photobridge/
   run.py                  # entry point: starts uvicorn in a background thread
   gui_app.py              # desktop control center GUI app (Tkinter)
   run_control_center.bat  # double-clickable launcher for the GUI control center (root)
+  icon.ico                # multi-size Windows icon file generated from PWA logo
   local-batch-files/       # CLI launchers and setup batch files
     run_app.bat           # double-clickable CLI server launcher
     setup.bat             # admin UAC firewall rule installation launcher

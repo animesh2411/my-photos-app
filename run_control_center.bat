@@ -22,5 +22,10 @@ if not exist ".venv" (
     call .venv\Scripts\activate.bat
 )
 
+:: Create desktop shortcut with custom icon if it doesn't exist
+if not exist "%USERPROFILE%\Desktop\PhotoBridge.lnk" (
+    powershell -Command "$WshShell = New-Object -ComObject WScript.Shell; $Shortcut = $WshShell.CreateShortcut('%USERPROFILE%\Desktop\PhotoBridge.lnk'); $Shortcut.TargetPath = '%~dp0run_control_center.bat'; $Shortcut.WorkingDirectory = '%~dp0'; $Shortcut.IconLocation = '%~dp0icon.ico'; $Shortcut.Save()" >nul 2>&1
+)
+
 :: Run the GUI control center without spawning a console window
 start "" pythonw gui_app.py

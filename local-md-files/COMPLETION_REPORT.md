@@ -276,6 +276,7 @@ my-photos-app/
 ├── run.py                    # Entry point
 ├── gui_app.py                # Desktop control center GUI (Tkinter)
 ├── run_control_center.bat    # Windows launcher batch script for the GUI (root)
+├── icon.ico                  # Multi-size Windows icon file generated from PWA logo
 ├── local-batch-files/         # CLI launchers and legacy setup scripts
 │   ├── run_app.bat           # CLI server launcher
 │   ├── setup.bat             # Admin firewall setup script

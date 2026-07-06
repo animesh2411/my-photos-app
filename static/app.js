@@ -72,7 +72,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function initializeApp() {
-    const config = await fetchConfig();
+    let config = null;
+    while (!config) {
+        try {
+            config = await fetchConfig();
+        } catch (err) {
+            console.log('Server not ready, retrying in 2 seconds...');
+            await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+    }
+
     state.configured = config.configured;
 
     if (state.configured) {
