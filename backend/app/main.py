@@ -19,10 +19,34 @@ from app.scanner import MediaIndex, decode_id
 from app.media import generate_thumbnail, get_range_response
 
 
+import time
+from app.logger import log_event, get_logs, clear_logs
+
 app = FastAPI(title="PhotoBridge")
 
 # Global media index
 media_index = MediaIndex()
+
+
+@app.middleware("http")
+async def log_requests_middleware(request: Request, call_next):
+    path = request.url.path
+    if path.startswith("/api/"):
+        start_time = time.time()
+        response = await call_next(request)
+        process_time = round((time.time() - start_time) * 1000, 1)
+        client_ip = request.client.host if request.client else "unknown"
+        
+        level = "INFO"
+        if response.status_code >= 400 and response.status_code < 500:
+            level = "WARN"
+        elif response.status_code >= 500:
+            level = "ERROR"
+
+        if path != "/api/logs":
+            log_event(level, f"{request.method} {path} - {response.status_code} ({process_time}ms) [{client_ip}]")
+        return response
+    return await call_next(request)
 
 
 # ============================================================================
@@ -152,6 +176,25 @@ async def api_select_folder(req: Request):
         raise HTTPException(status_code=500, detail=f"Failed to open folder picker: {str(e)}")
 
 
+from app.logger import log_event, get_logs, clear_logs
+
+# ============================================================================
+# API Endpoints: Logs
+# ============================================================================
+
+@app.get("/api/logs")
+def api_get_logs(dependencies=Depends(verify_access_pin)):
+    """Get application logs."""
+    return get_logs()
+
+
+@app.delete("/api/logs")
+def api_clear_logs(dependencies=Depends(verify_access_pin)):
+    """Clear application logs."""
+    clear_logs()
+    return {"status": "cleared"}
+
+
 # ============================================================================
 # API Endpoints: Media
 # ============================================================================
@@ -204,7 +247,7 @@ async def api_rescan(album: str = None, dependencies=Depends(verify_access_pin))
 # ============================================================================
 
 @app.get("/api/thumb/{media_id}")
-async def api_thumbnail(media_id: str, w: int = 300, dependencies=Depends(verify_access_pin)):
+def api_thumbnail(media_id: str, w: int = 300, dependencies=Depends(verify_access_pin)):
     """
     Get a thumbnail for a media file.
     For images: returns JPEG thumbnail resized to w pixels on the longer side.
@@ -228,7 +271,7 @@ async def api_thumbnail(media_id: str, w: int = 300, dependencies=Depends(verify
             iter([thumbnail_data]),
             media_type="image/jpeg",
             headers={
-                "Cache-Control": "public, max-age=86400",
+                "Cache-Control": "private, no-store, must-revalidate",
                 "Content-Length": str(len(thumbnail_data))
             }
         )
@@ -237,8 +280,44 @@ async def api_thumbnail(media_id: str, w: int = 300, dependencies=Depends(verify
         raise HTTPException(status_code=500, detail="Failed to generate thumbnail")
 
 
+@app.get("/api/preview/{media_id}")
+def api_preview(media_id: str, dependencies=Depends(verify_access_pin)):
+    """
+    Get a screen-resolution preview image (1200px, cached JPEG).
+    Much faster to load than the original file for the fullscreen viewer.
+    For videos: falls through to the original file via range response.
+    """
+    media = media_index.get_media_by_id(media_id)
+    if not media:
+        raise HTTPException(status_code=404, detail="Media not found")
+
+    file_path = media_index.get_file_path(media_id)
+    if not file_path or not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+
+    # Videos are streamed from the original
+    if media["type"] == "video":
+        return get_range_response(file_path, None)
+
+    try:
+        # Reuse the same disk-cache thumbnail system at 1200px
+        preview_data = generate_thumbnail(file_path, 1200)
+        return StreamingResponse(
+            iter([preview_data]),
+            media_type="image/jpeg",
+            headers={
+                "Cache-Control": "private, no-store, must-revalidate",
+                "Content-Length": str(len(preview_data))
+            }
+        )
+    except Exception as e:
+        print(f"Error generating preview: {e}")
+        # Fall back to full file
+        return get_range_response(file_path, None)
+
+
 @app.get("/api/full/{media_id}")
-async def api_full_media(media_id: str, range: str = Header(None), dependencies=Depends(verify_access_pin)):
+def api_full_media(media_id: str, range: str = Header(None), dependencies=Depends(verify_access_pin)):
     """
     Stream the original media file.
     Supports HTTP range requests for video seeking.
@@ -255,7 +334,7 @@ async def api_full_media(media_id: str, range: str = Header(None), dependencies=
 
 
 @app.get("/api/download/{media_id}")
-async def api_download_media(media_id: str, range: str = Header(None), dependencies=Depends(verify_access_pin)):
+def api_download_media(media_id: str, range: str = Header(None), dependencies=Depends(verify_access_pin)):
     """
     Download/stream the media file with attachment disposition.
     Supports HTTP range requests.
@@ -293,6 +372,7 @@ async def startup_event():
     """
     On startup: quickly index album folders only (no file scanning).
     Actual file scanning happens lazily per-album on demand.
+    Album counting runs in a background thread so server is ready instantly.
     """
     from app.config import ensure_config_exists
     ensure_config_exists()
@@ -303,5 +383,16 @@ async def startup_event():
         # _index_albums() is fast — just reads folder names, no file stat
         media_index._index_albums()
 
+        # Count album files in the background — doesn't block startup
+        import threading
+        threading.Thread(target=media_index.count_albums_sync, daemon=True).start()
 
+
+@app.on_event("shutdown")
+def shutdown_event():
+    """
+    On server shutdown: clean up .thumbcache directory.
+    """
+    from app.media import clear_thumb_cache
+    clear_thumb_cache()
 

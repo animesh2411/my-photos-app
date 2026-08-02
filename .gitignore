@@ -19,4 +19,4 @@ wheels/
 .venv/
 .env
 .DS_Store
-
+backend/app.log

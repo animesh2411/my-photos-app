@@ -11,18 +11,7 @@ import base64
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 
-try:
-    from PIL import Image
-    from PIL.ExifTags import TAGS
-except ImportError:
-    Image = None
-    TAGS = None
 
-try:
-    import pillow_heif
-    pillow_heif.register_heif_opener()
-except ImportError:
-    pass
 
 
 # Accepted file types
@@ -42,42 +31,6 @@ def decode_id(encoded_id: str) -> str:
     return base64.urlsafe_b64decode(encoded_id).decode()
 
 
-def get_exif_date(image_path: str) -> Optional[str]:
-    if Image is None:
-        return None
-    try:
-        img = Image.open(image_path)
-        exif_data = img._getexif() if hasattr(img, '_getexif') else None
-        if exif_data:
-            for tag_id, tag_name in TAGS.items():
-                if tag_name in ["DateTimeOriginal", "DateTime"]:
-                    if tag_id in exif_data:
-                        dt_str = exif_data[tag_id]
-                        if isinstance(dt_str, str):
-                            try:
-                                dt = datetime.strptime(dt_str, "%Y:%m:%d %H:%M:%S")
-                                return dt.isoformat()
-                            except Exception:
-                                pass
-        return None
-    except Exception:
-        return None
-
-
-def get_file_date(file_path: str) -> str:
-    try:
-        mtime = os.path.getmtime(file_path)
-        return datetime.fromtimestamp(mtime).isoformat()
-    except Exception:
-        return datetime.now().isoformat()
-
-
-def get_media_date(file_path: str, media_type: str) -> str:
-    if media_type == "image":
-        exif_date = get_exif_date(file_path)
-        if exif_date:
-            return exif_date
-    return get_file_date(file_path)
 
 
 def scan_folder_recursive(photos_dir: str, folder_path: str, album_name: str) -> List[Dict]:
@@ -102,8 +55,7 @@ def scan_folder_recursive(photos_dir: str, folder_path: str, album_name: str) ->
 
             file_path = os.path.join(root, filename)
             try:
-                size_bytes = os.path.getsize(file_path)
-                date_taken = get_media_date(file_path, media_type)
+                st = os.stat(file_path)
                 rel_path = os.path.relpath(file_path, photos_dir)
                 media_id = encode_id(rel_path)
 
@@ -113,8 +65,8 @@ def scan_folder_recursive(photos_dir: str, folder_path: str, album_name: str) ->
                     "filename": filename,
                     "album": album_name,
                     "type": media_type,
-                    "date_taken": date_taken,
-                    "size_bytes": size_bytes
+                    "date_taken": datetime.fromtimestamp(st.st_mtime).isoformat(),
+                    "size_bytes": st.st_size
                 })
             except Exception as e:
                 print(f"Warning: Could not process {file_path}: {e}")
@@ -137,17 +89,16 @@ def scan_folder_recursive(photos_dir: str, folder_path: str, album_name: str) ->
     return media_list
 
 
-def count_media_recursive(folder_path: str) -> int:
+def count_media_flat(folder_path: str) -> int:
     """
-    Count media files in a folder tree without reading EXIF.
-    Fast — used only for album list counts.
+    Count media files directly in a single folder (non-recursive).
+    Uses os.scandir for speed — no subdirectory descent.
     """
     count = 0
     try:
-        for root, dirs, files in os.walk(folder_path):
-            for f in files:
-                if os.path.splitext(f)[1].lower() in MEDIA_EXTENSIONS:
-                    count += 1
+        for entry in os.scandir(folder_path):
+            if entry.is_file() and os.path.splitext(entry.name)[1].lower() in MEDIA_EXTENSIONS:
+                count += 1
     except Exception:
         pass
     return count
@@ -201,24 +152,37 @@ class MediaIndex:
             pass
 
     # ------------------------------------------------------------------
-    # Albums list (with fast recursive counts)
+    # Albums list (with fast flat counts)
     # ------------------------------------------------------------------
 
     def get_albums(self) -> List[Dict]:
         """
-        Return album list with media counts.
-        Counts are cached after first call per album.
+        Return album list instantly. Counts are returned if cached,
+        otherwise -1 (frontend shows '...' until counted).
         """
         result = []
         for album_name, folder_path in self._albums.items():
-            if album_name not in self._album_counts:
-                self._album_counts[album_name] = count_media_recursive(folder_path)
             result.append({
                 "name": album_name,
-                "path": folder_path,
-                "count": self._album_counts[album_name]
+                "count": self._album_counts.get(album_name, -1)
             })
         return result
+
+    def count_albums_sync(self):
+        """
+        Count media in all albums. Called once after startup in background.
+        """
+        subfolder_total = 0
+        for album_name, folder_path in self._albums.items():
+            if album_name == "All Photos":
+                continue
+            if album_name not in self._album_counts:
+                self._album_counts[album_name] = count_media_flat(folder_path)
+            subfolder_total += self._album_counts[album_name]
+
+        if "All Photos" in self._albums and "All Photos" not in self._album_counts:
+            root_files = count_media_flat(self._albums["All Photos"])
+            self._album_counts["All Photos"] = root_files + subfolder_total
 
     # ------------------------------------------------------------------
     # Per-album lazy scan + pagination

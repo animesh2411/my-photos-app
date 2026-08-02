@@ -55,8 +55,9 @@ class PhotoBridgeGUI:
 
     def center_window(self):
         self.root.update_idletasks()
-        width = 480
-        height = 620
+        width = 520
+        height = 680
+        self.root.minsize(500, 640)
         x = (self.root.winfo_screenwidth() // 2) - (width // 2)
         y = (self.root.winfo_screenheight() // 2) - (height // 2)
         self.root.geometry(f"{width}x{height}+{x}+{y}")
@@ -180,6 +181,10 @@ class PhotoBridgeGUI:
         # Run server button
         self.btn_run = make_flat_btn(btn_frame, "2. Start PhotoBridge Server", self.toggle_server, GREEN_COLOR, "#34c759")
         self.btn_run.pack(fill="x", pady=6)
+
+        # View logs button
+        self.btn_logs = make_flat_btn(btn_frame, "📋 View Server Logs", self.open_logs_window, CARD_BG, "#2c2c2e")
+        self.btn_logs.pack(fill="x", pady=6)
 
         # Uninstall rule button
         self.btn_uninstall = make_flat_btn(btn_frame, "3. Remove Firewall Rule", self.run_uninstall, CARD_BG, "#2c2c2e")
@@ -391,6 +396,12 @@ class PhotoBridgeGUI:
                     self.server_process = None
                     self.server_running = False
                     
+                    try:
+                        from app.media import clear_thumb_cache
+                        clear_thumb_cache()
+                    except Exception:
+                        pass
+
                     # Run on main thread
                     self.root.after(0, self.on_server_stopped)
             
@@ -423,11 +434,18 @@ class PhotoBridgeGUI:
                     threading.Thread(target=self.drain_stream, args=(self.server_process.stdout,), daemon=True).start()
                     threading.Thread(target=self.drain_stream, args=(self.server_process.stderr,), daemon=True).start()
                     
-                    # Give it a second to start
-                    time.sleep(1.2)
+                    # Give it 1.5 seconds to initialize
+                    time.sleep(1.5)
                     
-                    self.server_running = True
-                    self.root.after(0, self.on_server_started)
+                    if self.server_process.poll() is not None:
+                        # Process exited due to startup error
+                        self.server_running = False
+                        self.server_process = None
+                        self.root.after(0, lambda: messagebox.showerror("Startup Error", "Server failed to start. Please wait a few seconds for port 8000 to clear, or check if another app is using port 8000."))
+                        self.root.after(0, self.on_server_stopped)
+                    else:
+                        self.server_running = True
+                        self.root.after(0, self.on_server_started)
                 except Exception as e:
                     self.server_running = False
                     self.root.after(0, lambda: messagebox.showerror("Error", f"Failed to start server: {e}"))
@@ -480,16 +498,116 @@ class PhotoBridgeGUI:
         if self.firewall_active:
             self.btn_uninstall.configure(state="normal", bg=CARD_BG)
 
+    def open_logs_window(self):
+        """Open a live log viewer window in Tkinter."""
+        log_win = tk.Toplevel(self.root)
+        log_win.title("PhotoBridge Server Logs")
+        log_win.geometry("650x450")
+        log_win.configure(bg=BG_COLOR)
+
+        # Header
+        hdr = tk.Frame(log_win, bg=CARD_BG, padx=15, pady=10)
+        hdr.pack(fill="x", side="top")
+        
+        lbl = tk.Label(hdr, text="📋 PhotoBridge Server Logs", font=("Segoe UI", 12, "bold"), fg="#ffffff", bg=CARD_BG)
+        lbl.pack(side="left")
+
+        # Text Widget
+        import tkinter.scrolledtext as st
+        log_text = st.ScrolledText(
+            log_win,
+            bg="#0d0d0d",
+            fg="#d1d1d6",
+            insertbackground="#ffffff",
+            font=("Consolas", 10),
+            padx=10,
+            pady=10,
+            relief="flat"
+        )
+        log_text.pack(fill="both", expand=True, padx=10, pady=10)
+
+        log_text.tag_config("INFO", foreground="#30d158")
+        log_text.tag_config("WARN", foreground="#ffd60a")
+        log_text.tag_config("ERROR", foreground="#ff453a")
+        log_text.tag_config("TIME", foreground="#636366")
+
+        def fetch_logs():
+            log_text.configure(state="normal")
+            log_text.delete("1.0", tk.END)
+
+            try:
+                from app.logger import get_logs
+                logs = get_logs()
+                if not logs:
+                    log_text.insert(tk.END, "No logs recorded yet.\n", "TIME")
+                else:
+                    for entry in logs:
+                        log_text.insert(tk.END, f"[{entry['timestamp']}] ", "TIME")
+                        lvl = entry['level']
+                        tag = "INFO"
+                        if "WARN" in lvl: tag = "WARN"
+                        if "ERR" in lvl: tag = "ERROR"
+                        log_text.insert(tk.END, f"[{lvl}] ", tag)
+                        log_text.insert(tk.END, f"{entry['message']}\n")
+            except Exception as e:
+                log_text.insert(tk.END, f"Failed to fetch logs: {e}\n", "ERROR")
+
+            log_text.configure(state="disabled")
+            log_text.see(tk.END)
+
+        # Action Buttons
+        btn_bar = tk.Frame(log_win, bg=BG_COLOR, padx=10, pady=8)
+        btn_bar.pack(fill="x", side="bottom")
+
+        btn_ref = tk.Button(btn_bar, text="🔄 Refresh", command=fetch_logs, bg=CARD_BG, fg="#ffffff", relief="flat", padx=10, pady=5)
+        btn_ref.pack(side="left", padx=5)
+
+        def clear_logs_action():
+            try:
+                from app.logger import clear_logs
+                clear_logs()
+                fetch_logs()
+            except Exception:
+                pass
+
+        btn_clr = tk.Button(btn_bar, text="🗑️ Clear Logs", command=clear_logs_action, bg=CARD_BG, fg="#ffffff", relief="flat", padx=10, pady=5)
+        btn_clr.pack(side="left", padx=5)
+
+        win_active = True
+
+        def auto_update():
+            if win_active:
+                try:
+                    if log_win.winfo_exists():
+                        fetch_logs()
+                        log_win.after(1500, auto_update)
+                except Exception:
+                    pass
+
+        def on_win_close():
+            nonlocal win_active
+            win_active = False
+            log_win.destroy()
+
+        log_win.protocol("WM_DELETE_WINDOW", on_win_close)
+        auto_update()
+
     def on_closing(self):
-        """Clean closure of application, terminating background server tasks."""
+        """Clean closure of application, terminating background server tasks & deleting .thumbcache."""
         if self.server_running:
-            # Stop server synchronously on close
             try:
                 if self.server_process:
                     self.server_process.communicate(input="\n", timeout=2)
             except Exception:
                 if self.server_process:
                     self.server_process.kill()
+
+        try:
+            from app.media import clear_thumb_cache
+            clear_thumb_cache()
+        except Exception:
+            pass
+
         self.root.destroy()
 
 if __name__ == "__main__":
@@ -497,6 +615,15 @@ if __name__ == "__main__":
     script_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.dirname(script_dir)
     os.chdir(project_root)
+
+    # Clean leftover thumbnails on launch & register atexit hook
+    import atexit
+    try:
+        from app.media import clear_thumb_cache
+        clear_thumb_cache()
+        atexit.register(clear_thumb_cache)
+    except Exception:
+        pass
 
     root = tk.Tk()
     app = PhotoBridgeGUI(root)

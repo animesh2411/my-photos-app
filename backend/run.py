@@ -24,17 +24,23 @@ class UvicornServerThread(threading.Thread):
             log_level="warning"
         )
         self.server = uvicorn.Server(self.config)
+        self.error = None
 
     def run(self):
         try:
             self.server.run()
         except Exception as e:
-            print(f"\n[ERROR] Server error: {e}")
+            self.error = e
+            print(f"\n[ERROR] Server failed to start: {e}")
 
     def stop(self):
         self.server.should_exit = True
 
 if __name__ == "__main__":
+    import atexit
+    from app.media import clear_thumb_cache
+    atexit.register(clear_thumb_cache)
+
     port = get_port_from_env()
     config = get_config()
     lan_ip = get_lan_ip()
@@ -45,6 +51,13 @@ if __name__ == "__main__":
 
     # Small delay to let uvicorn initialize
     time.sleep(1.5)
+
+    if server_thread.error or not server_thread.server.started:
+        print(f"\n[ERROR] PhotoBridge failed to bind to port {port}.")
+        if server_thread.error:
+            print(f"Details: {server_thread.error}")
+        print("Please make sure no other process is using port 8000, then try again.")
+        sys.exit(1)
 
     photos_folder_status = (
         "not yet configured — open the app and complete setup"
@@ -71,4 +84,8 @@ if __name__ == "__main__":
     print("\nStopping PhotoBridge server...")
     server_thread.stop()
     server_thread.join(timeout=5.0)
+
+    from app.media import clear_thumb_cache
+    clear_thumb_cache()
+
     print("PhotoBridge stopped. You can close this window now.")

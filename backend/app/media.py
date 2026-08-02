@@ -4,6 +4,7 @@ Generates thumbnails and streams files with HTTP range request support.
 """
 
 import os
+import hashlib
 import mimetypes
 from io import BytesIO
 from fastapi import HTTPException
@@ -21,21 +22,22 @@ try:
 except ImportError:
     pass  # pillow-heif not installed
 
+# Thumbnail cache directory
+THUMB_CACHE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.thumbcache')
+
+
+def _thumb_cache_path(file_path: str, width: int) -> str:
+    """Get the cache file path for a thumbnail."""
+    mtime = os.path.getmtime(file_path)
+    key = f"{file_path}|{width}|{mtime}"
+    digest = hashlib.md5(key.encode()).hexdigest()
+    return os.path.join(THUMB_CACHE_DIR, digest[:2], f"{digest}.jpg")
+
 
 def generate_thumbnail(file_path: str, width: int = 300) -> bytes:
     """
-    Generate a JPEG thumbnail for an image.
-
-    Args:
-        file_path: Absolute path to the image file
-        width: Longer side dimension in pixels (default 300)
-
-    Returns:
-        JPEG bytes, or the original file if thumbnail generation fails
-
-    Raises:
-        FileNotFoundError: if file doesn't exist
-        ValueError: if not an image
+    Generate a JPEG thumbnail with disk caching.
+    Cached thumbnails are served directly from disk on subsequent requests.
     """
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"File not found: {file_path}")
@@ -43,28 +45,49 @@ def generate_thumbnail(file_path: str, width: int = 300) -> bytes:
     if Image is None:
         raise ValueError("Pillow not installed")
 
+    # Check cache first
+    cache_path = _thumb_cache_path(file_path, width)
+    if os.path.exists(cache_path):
+        with open(cache_path, 'rb') as f:
+            return f.read()
+
     try:
         img = Image.open(file_path)
-
-        # Calculate thumbnail size
         img.thumbnail((width, width), Image.Resampling.LANCZOS)
 
-        # Convert to RGB if necessary (e.g. for RGBA or palette images)
         if img.mode in ('RGBA', 'LA', 'P'):
             rgb_img = Image.new('RGB', img.size, (0, 0, 0))
             rgb_img.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
             img = rgb_img
 
-        # Save as JPEG
         output = BytesIO()
-        img.save(output, format='JPEG', quality=85)
-        output.seek(0)
-        return output.getvalue()
+        img.save(output, format='JPEG', quality=80)
+        thumb_data = output.getvalue()
+
+        # Save to cache
+        os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+        with open(cache_path, 'wb') as f:
+            f.write(thumb_data)
+
+        return thumb_data
     except Exception as e:
-        # Fall back to original file if thumbnail generation fails
         print(f"Warning: Failed to generate thumbnail for {file_path}: {e}")
         with open(file_path, 'rb') as f:
             return f.read()
+
+
+def clear_thumb_cache():
+    """
+    Delete all generated thumbnails in .thumbcache directory.
+    Automatically called when server stops to keep disk clean.
+    """
+    if os.path.exists(THUMB_CACHE_DIR):
+        try:
+            import shutil
+            shutil.rmtree(THUMB_CACHE_DIR, ignore_errors=True)
+            print("[INFO] Cleaned up .thumbcache directory.")
+        except Exception as e:
+            print(f"[WARNING] Could not clear thumbcache: {e}")
 
 
 def get_range_response(file_path: str, range_header: str | None) -> StreamingResponse | FileResponse:
@@ -93,7 +116,7 @@ def get_range_response(file_path: str, range_header: str | None) -> StreamingRes
             media_type=mime_type,
             headers={
                 'Accept-Ranges': 'bytes',
-                'Cache-Control': 'public, max-age=3600'
+                'Cache-Control': 'private, no-store, must-revalidate'
             }
         )
 
@@ -136,7 +159,7 @@ def get_range_response(file_path: str, range_header: str | None) -> StreamingRes
                 'Content-Range': f'bytes {start}-{end}/{file_size}',
                 'Content-Length': str(end - start + 1),
                 'Accept-Ranges': 'bytes',
-                'Cache-Control': 'public, max-age=3600'
+                'Cache-Control': 'private, no-store, must-revalidate'
             }
         )
     except (ValueError, IndexError):
@@ -146,7 +169,7 @@ def get_range_response(file_path: str, range_header: str | None) -> StreamingRes
             media_type=mime_type,
             headers={
                 'Accept-Ranges': 'bytes',
-                'Cache-Control': 'public, max-age=3600'
+                'Cache-Control': 'private, no-store, must-revalidate'
             }
         )
 

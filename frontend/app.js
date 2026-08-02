@@ -27,6 +27,75 @@ let state = {
 const PAGE_SIZE = 100; // items per page
 
 // ============================================================================
+// ============================================================================
+// REQUEST CANCELLATION & THREAD CONTROLLER
+// ============================================================================
+
+let gridAbortController = new AbortController();
+let tabAbortController = new AbortController();
+
+function cancelGridDownloads() {
+    if (gridAbortController) {
+        gridAbortController.abort();
+    }
+    gridAbortController = new AbortController();
+}
+
+function cancelAllActiveFetches() {
+    if (gridAbortController) {
+        gridAbortController.abort();
+    }
+    if (tabAbortController) {
+        tabAbortController.abort();
+    }
+    gridAbortController = new AbortController();
+    tabAbortController = new AbortController();
+}
+
+// GRID VIDEO MEMORY & STREAM CONTROLLER
+// ============================================================================
+
+function unloadGridVideo(videoEl) {
+    if (!videoEl || videoEl.tagName !== 'VIDEO') return;
+    try {
+        if (videoEl.src) {
+            videoEl.dataset.savedSrc = videoEl.src;
+            videoEl.pause();
+            videoEl.removeAttribute('src');
+            videoEl.load(); // Forces browser to immediately release video socket & RAM
+        }
+    } catch (e) {}
+}
+
+function restoreGridVideo(videoEl) {
+    if (!videoEl || videoEl.tagName !== 'VIDEO') return;
+    try {
+        if (videoEl.dataset.savedSrc && !videoEl.src) {
+            videoEl.src = videoEl.dataset.savedSrc;
+            videoEl.load();
+        }
+    } catch (e) {}
+}
+
+function unloadAllGridVideos() {
+    const gridContainer = document.getElementById('gridContainer');
+    if (!gridContainer) return;
+    const videos = gridContainer.querySelectorAll('video');
+    videos.forEach(v => unloadGridVideo(v));
+}
+
+function restoreVisibleGridVideos() {
+    const gridContainer = document.getElementById('gridContainer');
+    if (!gridContainer) return;
+    const videos = gridContainer.querySelectorAll('video');
+    videos.forEach(v => {
+        const rect = v.getBoundingClientRect();
+        if (rect.bottom >= -200 && rect.top <= window.innerHeight + 200) {
+            restoreGridVideo(v);
+        }
+    });
+}
+
 // LAZY LOADING OBSERVER
 // ============================================================================
 
@@ -38,20 +107,24 @@ function getLazyImageObserver() {
     if ('IntersectionObserver' in window) {
         lazyImageObserver = new IntersectionObserver((entries, observer) => {
             entries.forEach(entry => {
+                const el = entry.target;
                 if (entry.isIntersecting) {
-                    const el = entry.target;
                     if (el.dataset.src) {
                         el.src = el.dataset.src;
                         el.removeAttribute('data-src');
                         if (el.tagName === 'VIDEO') {
-                            el.load(); // Required to trigger video loading in Safari/Chrome
+                            el.load();
                         }
+                    } else if (el.tagName === 'VIDEO') {
+                        restoreGridVideo(el);
                     }
-                    observer.unobserve(el);
+                } else if (el.tagName === 'VIDEO' && el.src) {
+                    // Scrolled out of view — unload video media stream to free sockets/RAM
+                    unloadGridVideo(el);
                 }
             });
         }, {
-            rootMargin: '300px 0px 300px 0px', // Preload 300px before/after viewport
+            rootMargin: '200px 0px 200px 0px',
             threshold: 0
         });
     }
@@ -70,9 +143,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Initialize the app
+    // Initialize the app state
     await initializeApp();
+    
+    // Render initial app shell immediately!
     render();
+
+    // Fetch initial media asynchronously after shell is drawn
+    if (state.configured && !state.pinRequired) {
+        loadAlbums();
+        loadAlbumMedia('All Photos').then(() => {
+            const mainApp = document.getElementById('mainApp');
+            if (mainApp) renderGrid(mainApp);
+        }).catch(err => {
+            console.warn('Initial media load error:', err);
+        });
+    }
 });
 
 async function initializeApp() {
@@ -91,14 +177,6 @@ async function initializeApp() {
     if (state.configured) {
         if (config.pin_required && !localStorage.getItem('pb_pin')) {
             state.pinRequired = true;
-        } else {
-            try {
-                await loadAlbums();
-                // Lazy-load the All Photos folder immediately so the main grid works
-                await loadAlbumMedia('All Photos');
-            } catch (err) {
-                console.warn('Initialization fetch failed:', err);
-            }
         }
     }
 }
@@ -176,7 +254,11 @@ async function loadAlbumMedia(albumName) {
     }
 
     state.albumLoading = true;
-    render();
+    // Show loading spinner inside existing grid container only
+    const gridEl = document.getElementById('gridContainer');
+    if (gridEl) {
+        gridEl.innerHTML = '<div style="padding:60px;text-align:center;color:#8e8e93;font-size:15px;"><div class="spinner" style="margin:0 auto 16px;"></div>Loading photos...</div>';
+    }
 
     try {
         const url = `/api/media?album=${encodeURIComponent(albumName)}&offset=0&limit=${PAGE_SIZE}`;
@@ -298,11 +380,15 @@ function renderPinScreen() {
             const config = await fetchConfig();
             state.configured = config.configured;
 
-            if (state.configured) {
-                await loadAlbums();
-                await loadAlbumMedia('All Photos');
-            }
             render();
+
+            if (state.configured) {
+                loadAlbums();
+                loadAlbumMedia('All Photos').then(() => {
+                    const mainApp = document.getElementById('mainApp');
+                    if (mainApp) renderGrid(mainApp);
+                });
+            }
         } catch (err) {
             errEl.textContent = 'Verification failed: ' + err.message;
         }
@@ -368,6 +454,34 @@ function renderSetupScreen() {
     return div;
 }
 
+function setupViewerSwipe(viewerElement) {
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchTime = 0;
+
+    viewerElement.addEventListener('touchstart', (e) => {
+        if (!state.viewerActive) return;
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        touchTime = Date.now();
+    }, { passive: true });
+
+    viewerElement.addEventListener('touchend', (e) => {
+        if (!state.viewerActive) return;
+        const diffX = e.changedTouches[0].clientX - touchStartX;
+        const diffY = e.changedTouches[0].clientY - touchStartY;
+        const duration = Date.now() - touchTime;
+
+        if (Math.abs(diffX) > 40 && Math.abs(diffX) > Math.abs(diffY) && duration < 500) {
+            if (diffX < 0) {
+                nextMedia();
+            } else {
+                previousMedia();
+            }
+        }
+    }, { passive: true });
+}
+
 function renderMainApp() {
     const div = document.createElement('div');
     div.id = 'mainApp';
@@ -383,20 +497,32 @@ function renderMainApp() {
         <button class="tab-button${state.currentTab === 'albums' ? ' active' : ''}" data-tab="albums">Albums</button>
         <button class="tab-button${state.currentTab === 'favorites' ? ' active' : ''}" data-tab="favorites">Favorites</button>
         <input type="text" id="searchBox" placeholder="Search...">
-        <button id="settingsBtn">⚙️</button>
     `;
 
-    // Tab buttons
+    // Tab buttons — cancel old requests, re-render active grid
     topBar.querySelectorAll('.tab-button').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', async () => {
+            // Instantly abort all active fetches from the previous tab!
+            cancelAllActiveFetches();
+
             topBar.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             state.currentTab = btn.dataset.tab;
             state.searchQuery = '';
-            state.inAlbumDetail = false; // Reset to album list on tab switch
+            state.inAlbumDetail = false;
             const searchBox = topBar.querySelector('#searchBox');
             if (searchBox) searchBox.value = '';
-            render();
+
+            // Load media/albums for the active tab if needed
+            if (state.currentTab === 'all-photos') {
+                await loadAlbumMedia('All Photos');
+            } else if (state.currentTab === 'albums') {
+                if (!state.albums || state.albums.length === 0) {
+                    await loadAlbums();
+                }
+            }
+
+            renderGrid(div);
         });
     });
 
@@ -408,11 +534,6 @@ function renderMainApp() {
             renderGrid(div);
         });
     }
-
-    // Settings
-    topBar.querySelector('#settingsBtn').addEventListener('click', () => {
-        openSettings();
-    });
 
     // Grid
     renderGrid(div);
@@ -456,6 +577,9 @@ function renderMainApp() {
     viewer.querySelector('#favButton').addEventListener('click', toggleFavorite);
     viewer.querySelector('#saveBtn').addEventListener('click', saveToPhotos);
 
+    // Setup touch swipe navigation ONCE on the viewer container
+    setupViewerSwipe(viewer);
+
     // Keyboard navigation
     document.addEventListener('keydown', (e) => {
         if (!state.viewerActive) return;
@@ -487,9 +611,109 @@ function setupPullToRefresh(container) {
     });
 }
 
+async function loadAlbumCover(albumName, imgEl) {
+    const cached = state.loadedAlbums[albumName];
+    if (cached && cached.items && cached.items.length > 0) {
+        const coverMedia = cached.items.find(m => m.type === 'image');
+        if (coverMedia) {
+            const pin = localStorage.getItem('pb_pin') || '';
+            const pinParam = pin ? `&pin=${pin}` : '';
+            imgEl.src = `/api/thumb/${coverMedia.id}?w=300${pinParam}`;
+            imgEl.classList.add('loaded');
+        }
+        return;
+    }
+
+    try {
+        const pin = localStorage.getItem('pb_pin') || '';
+        const pinParam = pin ? `&pin=${pin}` : '';
+        const res = await authedFetch(`/api/media?album=${encodeURIComponent(albumName)}&offset=0&limit=20`, {
+            signal: gridAbortController.signal
+        });
+        if (res.ok) {
+            const data = await res.json();
+            if (data.items && data.items.length > 0) {
+                if (!state.loadedAlbums[albumName]) {
+                    state.loadedAlbums[albumName] = {
+                        items: data.items,
+                        total: data.total,
+                        has_more: data.has_more,
+                        loading: false
+                    };
+                }
+                const coverMedia = data.items.find(m => m.type === 'image');
+                if (coverMedia) {
+                    imgEl.src = `/api/thumb/${coverMedia.id}?w=300${pinParam}`;
+                    imgEl.classList.add('loaded');
+                } else {
+                    // Pure video album: replace blank image with video icon placeholder
+                    const parent = imgEl.parentElement;
+                    if (parent) {
+                        parent.innerHTML = '<div class="video-cover-placeholder"><span class="play-icon">🎬</span></div>';
+                    }
+                }
+            }
+        }
+    } catch (err) {
+        // Silent catch for aborted requests
+    }
+}
+
+function createAlbumCard(album) {
+    const card = document.createElement('div');
+    card.className = 'album-card';
+
+    const cached = state.loadedAlbums[album.name];
+    const items = cached && cached.items ? cached.items : [];
+    const coverMedia = items.length > 0 ? items.find(m => m.type === 'image') : null;
+
+    const pin = localStorage.getItem('pb_pin') || '';
+    const pinParam = pin ? `&pin=${pin}` : '';
+
+    let coverSrc = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"%3E%3C/svg%3E';
+    let isLoaded = false;
+
+    if (coverMedia && coverMedia.type === 'image') {
+        coverSrc = `/api/thumb/${coverMedia.id}?w=300${pinParam}`;
+        isLoaded = true;
+    }
+
+    card.innerHTML = `
+        <div class="album-cover">
+            <img class="album-cover-img${isLoaded ? ' loaded' : ''}" src="${coverSrc}" alt="${album.name}">
+        </div>
+        <div class="album-info">
+            <div class="album-name">${album.name}</div>
+            <div class="album-count">${album.count < 0 ? '...' : album.count + ' item' + (album.count !== 1 ? 's' : '')}</div>
+        </div>
+    `;
+
+    const imgEl = card.querySelector('.album-cover-img');
+    if (imgEl && !isLoaded) {
+        const albumCoverObserver = new IntersectionObserver((entries, obs) => {
+            if (entries[0].isIntersecting) {
+                obs.disconnect();
+                loadAlbumCover(album.name, imgEl);
+            }
+        }, { rootMargin: '200px' });
+        albumCoverObserver.observe(card);
+    }
+
+    card.addEventListener('click', async () => {
+        state.selectedAlbum = album.name;
+        state.inAlbumDetail = true;
+        await loadAlbumMedia(album.name);
+        const mainApp = document.getElementById('mainApp');
+        if (mainApp) renderGrid(mainApp);
+    });
+
+    return card;
+}
+
 function renderGrid(app) {
     const container = app.querySelector('#gridContainer');
     container.innerHTML = '';
+    container.scrollTop = 0;
 
     // 1. ALBUMS GRID VIEW
     if (state.currentTab === 'albums' && !state.inAlbumDetail) {
@@ -502,44 +726,43 @@ function renderGrid(app) {
             msg.style.cssText = 'padding:40px;text-align:center;color:#8e8e93;font-size:15px;';
             msg.textContent = 'No albums found. Make sure a photos folder is configured.';
             albumsGrid.appendChild(msg);
+            container.appendChild(albumsGrid);
+            return;
         }
 
-        albumList.forEach(album => {
-            const card = document.createElement('div');
-            card.className = 'album-card';
+        const BATCH_SIZE = 40;
+        let renderedCount = 0;
 
-            // Cover: use first cached image from this album if available
-            const cached = state.loadedAlbums[album.name];
-            const coverMedia = cached ? cached.find(m => m.type === 'image') || cached[0] : null;
-
-            let coverHtml = '';
-            if (coverMedia && coverMedia.type === 'image') {
-                coverHtml = `<img src="/api/thumb/${coverMedia.id}?w=300" loading="lazy" alt="${album.name}">`;
-            } else {
-                coverHtml = `<div class="video-cover-placeholder"><span class="play-icon">📷</span></div>`;
-            }
-
-            card.innerHTML = `
-                <div class="album-cover">
-                    ${coverHtml}
-                </div>
-                <div class="album-info">
-                    <div class="album-name">${album.name}</div>
-                    <div class="album-count">${album.count} item${album.count !== 1 ? 's' : ''}</div>
-                </div>
-            `;
-
-            card.addEventListener('click', async () => {
-                state.selectedAlbum = album.name;
-                state.inAlbumDetail = true;
-                await loadAlbumMedia(album.name);
-                render();
+        function appendAlbumBatch() {
+            const batch = albumList.slice(renderedCount, renderedCount + BATCH_SIZE);
+            batch.forEach(album => {
+                albumsGrid.appendChild(createAlbumCard(album));
             });
+            renderedCount += batch.length;
+        }
 
-            albumsGrid.appendChild(card);
-        });
-
+        appendAlbumBatch();
         container.appendChild(albumsGrid);
+
+        if (renderedCount < albumList.length) {
+            const sentinel = document.createElement('div');
+            sentinel.id = 'albumScrollSentinel';
+            sentinel.style.cssText = 'height:60px;display:flex;align-items:center;justify-content:center;color:#8e8e93;font-size:13px;grid-column:1/-1;';
+            sentinel.textContent = 'Loading more albums...';
+            albumsGrid.appendChild(sentinel);
+
+            const albumObserver = new IntersectionObserver((entries) => {
+                if (entries[0].isIntersecting) {
+                    sentinel.remove();
+                    appendAlbumBatch();
+                    if (renderedCount < albumList.length) {
+                        albumsGrid.appendChild(sentinel);
+                    }
+                }
+            }, { rootMargin: '200px' });
+            albumObserver.observe(sentinel);
+        }
+
         setupPullToRefresh(container);
         return;
     }
@@ -554,7 +777,8 @@ function renderGrid(app) {
         `;
         backBar.querySelector('#albumBackBtn').addEventListener('click', () => {
             state.inAlbumDetail = false;
-            render();
+            const mainApp = document.getElementById('mainApp');
+            if (mainApp) renderGrid(mainApp);
         });
         container.appendChild(backBar);
     }
@@ -637,6 +861,8 @@ function createMediaTile(media, filteredMedia) {
     if (media.type === 'image') {
         const img = document.createElement('img');
         img.alt = media.filename;
+        // Fade in once loaded
+        img.onload = () => img.classList.add('loaded');
         const pin = localStorage.getItem('pb_pin') || '';
         const pinParam = pin ? `&pin=${pin}` : '';
         const observer = getLazyImageObserver();
@@ -657,6 +883,8 @@ function createMediaTile(media, filteredMedia) {
         video.muted = true;
         video.playsInline = true;
         video.setAttribute('playsinline', '');
+        // Fade in once first frame is ready
+        video.onloadeddata = () => video.classList.add('loaded');
         const pin = localStorage.getItem('pb_pin') || '';
         const pinParamUrl = pin ? `?pin=${pin}` : '';
         const observer = getLazyImageObserver();
@@ -674,6 +902,12 @@ function createMediaTile(media, filteredMedia) {
         overlay.className = 'video-overlay';
         overlay.innerHTML = '<div class="play-icon">▶</div>';
         containerDiv.appendChild(overlay);
+
+        const badge = document.createElement('div');
+        badge.className = 'video-badge';
+        badge.innerHTML = `<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><span>VIDEO</span>`;
+        containerDiv.appendChild(badge);
+
         tile.appendChild(containerDiv);
     }
 
@@ -778,21 +1012,51 @@ function appendGridItems(newItems) {
 // ============================================================================
 
 function openViewer() {
+    // 1. Abort background grid image downloads
+    cancelGridDownloads();
+
+    // 2. Unload all background grid video elements so zero competing media streams exist!
+    unloadAllGridVideos();
+
     state.viewerActive = true;
     const viewer = document.getElementById('fullscreenViewer');
     viewer.classList.add('active');
     updateViewer();
 }
 
+function cleanupViewerMedia() {
+    const content = document.getElementById('viewerContent');
+    if (!content) return;
+    const videos = content.querySelectorAll('video');
+    videos.forEach(v => {
+        try {
+            v.pause();
+            v.removeAttribute('src');
+            v.load();
+        } catch (e) {}
+    });
+    content.innerHTML = '';
+}
+
 function closeViewer() {
     state.viewerActive = false;
     document.getElementById('fullscreenViewer').classList.remove('active');
+    
+    // 1. Clean up viewer media elements
+    cleanupViewerMedia();
+
+    // 2. Reset grid fetch controller
+    gridAbortController = new AbortController();
+
+    // 3. Restore ONLY the videos visible in the current viewport
+    restoreVisibleGridVideos();
 }
 
 function updateViewer() {
+    cleanupViewerMedia();
     const media = state.viewedMedia[state.currentViewerIndex];
+    if (!media) return;
     const content = document.getElementById('viewerContent');
-    content.innerHTML = '';
 
     const pin = localStorage.getItem('pb_pin') || '';
     const pinParam = pin ? `?pin=${pin}` : '';
@@ -800,7 +1064,7 @@ function updateViewer() {
     if (media.type === 'image') {
         const img = document.createElement('img');
         img.id = 'viewerImage';
-        img.src = `/api/full/${media.id}${pinParam}`;
+        img.src = `/api/preview/${media.id}${pinParam}`;
         img.alt = media.filename;
         content.appendChild(img);
 
@@ -860,11 +1124,21 @@ function updateViewer() {
             img.addEventListener('mouseleave', stopPlayback);
         }
     } else {
+        const containerDiv = document.createElement('div');
+        containerDiv.style.cssText = 'position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;';
+
         const video = document.createElement('video');
         video.id = 'viewerVideo';
         video.controls = true;
-        video.src = `/api/full/${media.id}${pinParam}`;
-        content.appendChild(video);
+        video.playsInline = true;
+        video.setAttribute('playsinline', '');
+        video.preload = 'metadata';
+        // #t=0.1 tells browser media engine to render first frame thumbnail immediately
+        video.src = `/api/full/${media.id}${pinParam}#t=0.1`;
+        video.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain;';
+
+        containerDiv.appendChild(video);
+        content.appendChild(containerDiv);
     }
 
     // Update favorite button
@@ -874,28 +1148,18 @@ function updateViewer() {
     } else {
         favBtn.classList.remove('favorited');
     }
-
-    // Swipe navigation
-    let touchStartX = 0;
-    content.addEventListener('touchstart', (e) => {
-        touchStartX = e.touches[0].clientX;
-    });
-
-    content.addEventListener('touchend', (e) => {
-        const diff = e.changedTouches[0].clientX - touchStartX;
-        if (diff > 50) previousMedia();
-        if (diff < -50) nextMedia();
-    });
 }
 
 function nextMedia() {
     if (!state.viewedMedia.length) return;
+    cleanupViewerMedia();
     state.currentViewerIndex = (state.currentViewerIndex + 1) % state.viewedMedia.length;
     updateViewer();
 }
 
 function previousMedia() {
     if (!state.viewedMedia.length) return;
+    cleanupViewerMedia();
     state.currentViewerIndex = (state.currentViewerIndex - 1 + state.viewedMedia.length) % state.viewedMedia.length;
     updateViewer();
 }
@@ -1100,5 +1364,88 @@ function showToast(message) {
     toast.textContent = message;
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 3000);
+}
+
+async function openLogsModal() {
+    const existing = document.getElementById('logsModalOverlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'logsModalOverlay';
+    overlay.className = 'modal-overlay';
+
+    overlay.innerHTML = `
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title">📋 Application Logs</div>
+                <div class="modal-actions">
+                    <button id="refreshLogsBtn" class="modal-btn">🔄 Refresh</button>
+                    <button id="clearLogsBtn" class="modal-btn">🗑️ Clear</button>
+                    <button id="closeLogsBtn" class="modal-close-btn">&times;</button>
+                </div>
+            </div>
+            <div class="terminal-logs-window" id="logsTerminalContent">
+                <div style="color:#8e8e93;text-align:center;padding:40px;">Fetching logs...</div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const closeBtn = overlay.querySelector('#closeLogsBtn');
+    closeBtn.addEventListener('click', () => overlay.remove());
+
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) overlay.remove();
+    });
+
+    const terminalEl = overlay.querySelector('#logsTerminalContent');
+
+    async function fetchAndRenderLogs() {
+        try {
+            const res = await authedFetch('/api/logs');
+            if (res.ok) {
+                const logs = await res.json();
+                if (logs.length === 0) {
+                    terminalEl.innerHTML = '<div style="color:#636366;text-align:center;padding:40px;">No logs recorded yet.</div>';
+                    return;
+                }
+
+                terminalEl.innerHTML = logs.map(log => {
+                    let levelClass = 'log-level-info';
+                    if (log.level === 'WARN' || log.level === 'WARNING') levelClass = 'log-level-warn';
+                    if (log.level === 'ERROR' || log.level === 'CRITICAL') levelClass = 'log-level-error';
+
+                    return `<div class="log-entry">
+                        <span class="log-time">[${log.timestamp}]</span>
+                        <span class="${levelClass}">[${log.level}]</span>
+                        <span class="log-message">${escapeHtml(log.message)}</span>
+                    </div>`;
+                }).join('');
+
+                terminalEl.scrollTop = terminalEl.scrollHeight;
+            }
+        } catch (err) {
+            terminalEl.innerHTML = `<div style="color:#ff453a;padding:20px;">Failed to fetch logs: ${err.message}</div>`;
+        }
+    }
+
+    overlay.querySelector('#refreshLogsBtn').addEventListener('click', fetchAndRenderLogs);
+    overlay.querySelector('#clearLogsBtn').addEventListener('click', async () => {
+        try {
+            await authedFetch('/api/logs', { method: 'DELETE' });
+            fetchAndRenderLogs();
+        } catch (e) {}
+    });
+
+    fetchAndRenderLogs();
+}
+
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
 }
 
