@@ -6,37 +6,42 @@ PhotoBridge has been fully implemented according to the spec. Here's what's work
 
 ### Backend (Steps 1-4 Complete)
 - ✅ **config.py** — Configuration management (reads/writes config.json)
-- ✅ **scanner.py** — Filesystem scanning with EXIF date extraction
-- ✅ **main.py** — FastAPI application with all routes:
+- ✅ **scanner.py** — Filesystem scanning with EXIF date extraction & background album file counting
+- ✅ **logger.py** — Process-safe file-backed logging (`backend/app.log`) for server & Control Center
+- ✅ **main.py** — FastAPI application with all routes & Starlette ThreadPool offloading:
   - ✅ `GET /api/config` — Get current configuration
   - ✅ `POST /api/config` — Set photos folder path
   - ✅ `POST /api/select-folder` — Open native folder selection dialog on server
-  - ✅ `GET /api/media` — List all media objects
-  - ✅ `POST /api/rescan` — Rebuild media index
-  - ✅ `GET /api/thumb/{id}` — Generate JPEG thumbnails
-  - ✅ `GET /api/full/{id}` — Stream full files with HTTP range support
+  - ✅ `GET /api/media` — List all media objects with pagination
+  - ✅ `GET /api/albums` — List album folders instantly
+  - ✅ `GET /api/logs` — Fetch server log entries (JSON)
+  - ✅ `DELETE /api/logs` — Truncate server log entries
+  - ✅ `GET /api/thumb/{id}` — Offloaded JPEG thumbnail generation with disk cache
+  - ✅ `GET /api/preview/{id}` — 1200px preview JPEG generator
+  - ✅ `GET /api/full/{id}` — Stream full files with HTTP range seeking support
   - ✅ `GET /api/download/{id}` — Download endpoint for Save to Photos
-- ✅ **media.py** — Thumbnail generation & file streaming with range requests
+  - ✅ HTTP Request Logging Middleware — Logs method, path, status code, IP, and latency (`ms`)
+- ✅ **media.py** — Thumbnail generation, range streaming, and `clear_thumb_cache()` auto-teardown
 
-### Frontend (Steps 5-9 Complete)
-- ✅ **index.html** — HTML structure with PWA metadata
-- ✅ **style.css** — Dark theme CSS (iOS Photos aesthetic)
-- ✅ **app.js** — Complete single-page app with:
-  - ✅ Setup/Settings screen with "Browse Laptop..." folder selector
-  - ✅ Grid view with date-grouped media
-  - ✅ Tab navigation (All Photos / Albums / Favorites)
-  - ✅ Search functionality (filters by filename)
-  - ✅ Full-screen viewer with image/video support
-  - ✅ Swipe & keyboard navigation
-  - ✅ Favorites with localStorage persistence
-  - ✅ Save to Photos button with Web Share API integration
-  - ✅ Pull-to-rescan gesture
-  - ✅ Custom Settings modal (gear icon) for changing folder dynamically
+### Desktop GUI & Infrastructure
+- ✅ **desktop_gui/gui_app.py** — Windows Control Center GUI (`520x680` window):
+  - ✅ One-click elevation for inbound Port 8000 firewall rules (`netsh`)
+  - ✅ Windowless background Python server runner
+  - ✅ **`📋 View Server Logs`** — Live auto-refreshing (1.5s interval) Tkinter log window
+  - ✅ Automatic `.thumbcache/` purge on shutdown/launch
+- ✅ **run.py** — Entry point starting Uvicorn server thread with `atexit` cache cleanup
+- ✅ **run_control_center.bat** — One-click launcher initializing `.venv` and GUI
 
-### PWA & Service Worker (Step 9 Complete)
-- ✅ **manifest.json** — PWA manifest (standalone display, dark theme)
-- ✅ **sw.js** — Service worker (caches static files, never caches API)
-- ✅ "Add to Home Screen" support on iOS
+### Frontend & Privacy
+- ✅ **index.html** & **style.css** — Glassmorphic dark iOS Photos theme with shimmer placeholders & video badges (`▶ VIDEO`)
+- ✅ **app.js** — Single-page application with:
+  - ✅ AbortController cancellation (`gridAbortController`, `tabAbortController`)
+  - ✅ HTML5 `<video>` decoder cleanup on touch swipe and viewer exit
+  - ✅ Automatic album cover photo selection (prioritizes image over video)
+  - ✅ Automatic scroll position reset (`scrollTop = 0`) on tab/album switch
+  - ✅ Clean consumer UI (no administrative buttons on phone view)
+- ✅ **sw.js** — Service worker (`v28`) caching app shell only
+- ✅ **Cache-Control: private, no-store, must-revalidate** — Strict mobile privacy header preventing phone disk storage of media
 
 ### Infrastructure
 - ✅ **run.py** — Entry point that starts uvicorn on 0.0.0.0 in a background thread

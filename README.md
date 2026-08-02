@@ -40,13 +40,17 @@ If you are a developer, want to contribute, or need advanced configurations, ref
 
 ## ✨ Features
 
-* **🎛️ Windows Control Center**: Simple native desktop dashboard to check status, setup firewall rules, and start/stop the server windowlessly.
-* **📸 Date-Grouped Grid**: Scroll through all photos grouped by capture date with smooth lazy-loading.
-* **📂 Albums Card Grid**: Browse directories as album folders with Dynamic Cover Photos, total item counts, and smooth subnavigation back bars.
-* **🎥 Video Scrubbing**: Play videos inside the fullscreen slider with full range scrubbing and seeking controls.
-* **🔴 Live Photos Support**: Paired images and video clips (e.g. `.HEIC` + `.MOV`) show a "LIVE" badge in the viewer. Touch-and-hold to play the clip, and share them to your iPhone natively to merge them back into a Live Photo!
+* **🎛️ Windows Control Center GUI**: Native desktop dashboard to check server status, configure/remove firewall rules, launch windowless servers, and inspect **live real-time server logs** (`📋 View Server Logs`).
+* **📸 Date-Grouped Grid**: Scroll through all photos grouped by capture date with smooth lazy-loading and shimmer placeholders.
+* **📂 Albums Grid & Cover Art**: Browse directory albums with automatic cover art selection (prioritizes image files over video clips) and persistent cover caching.
+* **🎥 Video Badging & Scrubbing**: Video tiles display an iOS Photos style glassmorphism video badge (`▶ VIDEO`). Fullscreen video player supports range scrubbing and instant first-frame preview.
+* **🧵 ThreadPool Offloaded Processing**: Fast AP1 endpoints offload PIL decoding and EXIF reads to background worker threads, preventing event loop blocking.
+* **🛑 Request Cancellation Controller**: Aborts pending thumbnail downloads when switching tabs or clicking a photo, dedicating 100% pipeline to requested media.
+* **🧹 Automatic Cache Cleanup & Teardown**: `backend/.thumbcache/` is automatically purged on server shutdown/launch to keep laptop hard drives clean.
+* **📱 Strict Mobile Privacy**: Headers set to `Cache-Control: private, no-store, must-revalidate` — phone browsers are strictly forbidden from writing media to phone disk storage.
+* **🔴 Live Photos Support**: Paired images and video clips (e.g. `.HEIC` + `.MOV`) show a "LIVE" badge in the viewer. Touch-and-hold to play the clip.
 * **❤️ Mark Favorites**: Tap the heart button to save items to your favorites directory (saved locally).
-* **🔒 Localhost & Path Traversal Security**: Settings can only be edited directly from the laptop. Files are resolved via URL-safe base64 memory IDs so folder hierarchies remain protected.
+* **🔒 Localhost & Path Traversal Security**: Folder picker and settings can only be edited directly from the host laptop. Files are resolved via URL-safe base64 memory IDs.
 
 ---
 

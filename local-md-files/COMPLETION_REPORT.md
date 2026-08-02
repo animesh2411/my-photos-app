@@ -41,38 +41,52 @@ my-photos-app/
 - ✅ `GET /api/config` — Get current configuration
 - ✅ `POST /api/config` — Set photos folder path (with validation)
 - ✅ `POST /api/select-folder` — Open native folder selection dialog on server
-- ✅ `GET /api/media` — List all media objects
-- ✅ `POST /api/rescan` — Rebuild media index
-- ✅ `GET /api/thumb/{id}?w=300` — Generate JPEG thumbnails
-- ✅ `GET /api/full/{id}` — Stream full files with HTTP range requests
+- ✅ `GET /api/albums` — List all top-level album folders instantly
+- ✅ `GET /api/media` — List media objects with pagination
+- ✅ `GET /api/logs` — Fetch recent application logs (JSON)
+- ✅ `DELETE /api/logs` — Clear in-memory & file log buffer
+- ✅ `GET /api/thumb/{id}?w=300` — ThreadPool offloaded JPEG thumbnail generator with disk cache
+- ✅ `GET /api/preview/{id}` — 1200px screen-resolution preview JPEG generator
+- ✅ `GET /api/full/{id}` — Stream full media files with HTTP range requests for video seeking
 - ✅ `GET /api/download/{id}` — Download endpoint (for Save to Photos)
+- ✅ HTTP Request Logging Middleware — Logs method, path, status code, client IP, and latency (`ms`)
 - ✅ Static file serving (frontend)
+
+### Desktop Control Center & Infrastructure (All Working)
+- ✅ **desktop_gui/gui_app.py** — Native Windows Control Center (`520x680` geometry)
+- ✅ **`📋 View Server Logs`** — Live auto-refreshing (1.5s interval) Tkinter log window
+- ✅ **One-Click Firewall Rule Setup** — Admin-elevated PowerShell execution (`netsh`)
+- ✅ **Windowless Server Launcher** — Background Python server process (`subprocess.CREATE_NO_WINDOW`)
+- ✅ **Automatic Cache Purge** — `clear_thumb_cache()` auto-wipes `backend/.thumbcache/` on exit and launch
 
 ### Frontend Features (All Working)
 - ✅ Setup screen (enter path or click "Browse Laptop..." to select folder)
-- ✅ Date-grouped photo grid (newest first)
+- ✅ Date-grouped photo grid with Instagram-style shimmer placeholders
+- ✅ iOS Photos glassmorphism video badges (`▶ VIDEO`) on video tiles
 - ✅ Tab navigation (All Photos / Albums / Favorites)
+- ✅ Automatic album cover photo selection (prioritizes photos over video clips)
 - ✅ Search by filename (live filtering)
-- ✅ Full-screen image/video viewer
-- ✅ Swipe navigation (left/right to previous/next)
-- ✅ Keyboard navigation (arrow keys on desktop)
+- ✅ Full-screen image/video viewer with range scrubbing controls
+- ✅ Touch swipe & keyboard arrow navigation
+- ✅ `AbortController` cancellation for in-flight requests on tab switch or image click
+- ✅ HTML5 `<video>` decoder memory cleanup on swipe or exit
+- ✅ Automatic top-scroll reset (`scrollTop = 0`) on tab switch and album opening
 - ✅ Favorites with localStorage persistence
 - ✅ Save to Photos button (iOS Web Share API)
 - ✅ Pull-to-rescan gesture
-- ✅ Custom Settings modal (change folder via gear icon with "Browse..." button)
+- ✅ Clean consumer UI (no administrative buttons on phone view)
 
-### Advanced Features (All Working)
+### Advanced Privacy & Security (All Working)
+- ✅ **`Cache-Control: private, no-store, must-revalidate`** — Strict mobile privacy preventing phone disk storage of media
 - ✅ HTTP range requests (video seeking/scrubbing)
-- ✅ EXIF date extraction (images)
-- ✅ File mtime fallback (videos, no EXIF)
+- ✅ Process-safe file-backed logger (`backend/app.log`)
+- ✅ Live Photos pairing (`.HEIC`/`.JPG` + `.MOV`/`.MP4`) with concentric LIVE badge & press-and-hold playback
+- ✅ EXIF date extraction (images) and mtime fallback (videos)
 - ✅ HEIC/HEIF image format support (pillow-heif)
-- ✅ Thumbnail generation with Pillow
-- ✅ In-memory media index (fast)
 - ✅ URL-safe base64 media IDs (security)
-- ✅ Service worker (caches static, never caches API)
-- ✅ PWA support (standalone mode, home screen)
-- ✅ Dark theme (iOS Photos app aesthetic)
-- ✅ Error handling (corrupt files logged, not crashed)
+- ✅ Service worker (`v28`) caching app shell only
+- ✅ Localhost loopback lock on config endpoints (403 Forbidden for remote calls)
+- ✅ Access PIN security lock screen (401 Unauthorized protection)
 
 ## Quick Start
 

@@ -37,28 +37,32 @@ graph TD
 
 ### 1. Backend Modules (Python / FastAPI)
 
-* **`run.py`**: Entry point. Spawns the Uvicorn web server in a background daemon thread so the main thread can capture interactive `ENTER` keystrokes for safe server shutdowns.
-* **`app/main.py`**: The FastAPI controller. Declares HTTP endpoints, configures Pydantic validation models, hosts tkinter folder dialogue loops inside sub-threads (`asyncio.to_thread`), and enforces LAN routing constraints.
+* **`run.py`**: Entry point. Spawns the Uvicorn web server in a background daemon thread with `atexit` teardown handlers for `.thumbcache/`.
+* **`app/main.py`**: The FastAPI controller. Offloads image resizing and disk I/O to background Starlette thread pools (`def` endpoints), hosts HTTP request logging middleware (`log_requests_middleware`), and enforces `Cache-Control: private, no-store, must-revalidate` mobile privacy headers.
+* **`app/logger.py`**: Process-safe, file-backed logger (`backend/app.log`). Captures request timing (`ms`), client IP, status codes, and error events across subprocess boundaries.
 * **`app/config.py`**: Configures port settings, absolute folder targets, and access PIN values stored inside `config.json`.
-* **`app/scanner.py`**: Recursively crawls the target folder to extract creation timestamps (parsing EXIF tags) and hashes unique base64 IDs. Features a $O(N)$ second-pass algorithm to detect Live Photo pairs by matching base image (`.HEIC`/`.JPG`) and video (`.MOV`/`.MP4`) filenames.
-* **`app/media.py`**: Serves media binaries. Utilizes Pillow and `pillow-heif` to generate on-the-fly JPEG thumbnails and runs an custom range-response generator to support HTML5 video scrubbing.
+* **`app/scanner.py`**: Crawls target directories using lightweight `os.stat` calls (metadata only, no PIL image decoding). Recursively pairs Live Photo pairs (`.HEIC`/`.JPG` + `.MOV`/`.MP4`) and counts album media in a daemon thread.
+* **`app/media.py`**: Serves media binaries with disk-cached thumbnails (`backend/.thumbcache/`), range-response video streaming, and `clear_thumb_cache()` auto-teardown handlers.
 
-### 2. Windows Automation Launchers
-* **`gui_app.py`**: A native Tkinter-based desktop Control Center. Features a dark-themed status dashboard and custom hover control buttons.
-  * **Dynamic Wrapping & Resizing**: Listens to the window's `<Configure>` resize event to dynamically wrap status and URL labels based on the current window width (min-size locked to `440x500`).
-  * **UAC-Elevated Background Tasks**: Executes UAC-elevated PowerShell scripts to install/uninstall firewall rules with single quote escaping (`''`) inside background threads. Employs `Start-Process -Verb RunAs` combined with `-WindowStyle Hidden` so that **no command prompt or terminal window opens**.
-  * **Windowless Server Spawning**: Launches the Python server subprocess (`run.py`) passing `creationflags=subprocess.CREATE_NO_WINDOW` on Windows to run the server completely hidden in the background without spawning any black terminal windows. Automatically drains standard outputs to avoid process buffer locks.
-* **`run_control_center.bat`**: Double-clickable launcher script. Sets up and activates the virtual environment `.venv`, verifies dependencies, and invokes `gui_app.py` using `pythonw.exe` to suppress the background launcher terminal.
-* **`local-batch-files/run_app.bat`**: Standard CLI launcher script. Automatically queries the firewall using `netsh` (non-admin friendly and instant) to check if Port 8000 is open, printing a one-line warning if it's missing, then starting `run.py`.
-* **`local-batch-files/setup.bat`**: Legacy standalone admin setup script. Self-elevates to Administrator via UAC and creates a Port 8000 inbound TCP firewall rule scoped strictly to the `Private` network profile (blocking exposure on public Wi-Fi).
-* **`local-batch-files/uninstall.bat`**: Legacy standalone cleanup script. Self-elevates to Administrator via UAC and deletes the Port 8000 inbound firewall rule.
+### 2. Windows Desktop Control Center & Launchers
+* **`desktop_gui/gui_app.py`**: A native Tkinter desktop Control Center (`520x680` geometry).
+  * **Live Log Viewer Window (`📋 View Server Logs`)**: Spawns a Toplevel Tkinter log viewer window with real-time 1.5s auto-refreshing logs, level-based syntax highlighting (`[INFO]`, `[WARN]`, `[ERROR]`), and Refresh/Clear controls.
+  * **Dynamic Resizing**: Wraps status labels based on current window width (`minsize(500, 640)`).
+  * **UAC Firewall Automation**: Executes UAC-elevated PowerShell scripts to install/uninstall inbound Port 8000 firewall rules (`netsh`).
+  * **Windowless Server Spawning**: Launches `backend/run.py` passing `creationflags=subprocess.CREATE_NO_WINDOW` on Windows.
+  * **Automatic Cache Teardown**: Automatically purges `backend/.thumbcache/` on window closure, server stop, or application launch.
+* **`run_control_center.bat`**: Double-clickable launcher script. Activates `.venv`, verifies dependencies, and invokes `gui_app.py` via `pythonw.exe`.
 
 ### 3. Frontend Modules (PWA Shell / Vanilla CSS & JS)
 
-* **`static/index.html`**: Serve template shell optimized for iOS Safari viewports (`viewport-fit=cover`).
-* **`static/app.js`**: Contains the state machine (`state`), image lazy-loader (`IntersectionObserver`), custom REST request wrappers (`authedFetch`), and layouts (date sections, full-screen slider, folder list).
-* **`static/style.css`**: Enforces a unified premium dark design matching Apple’s interface (Apple system fonts, translucent modal backdrops, scale-down buttons, circular navigation buttons, and animated SVGs).
-* **`static/manifest.json` & `static/sw.js`**: PWA registry and offline shell assets caching.
+* **`frontend/index.html`**: Service template shell optimized for iOS Safari viewports (`viewport-fit=cover`).
+* **`frontend/app.js`**: Single-page application state machine with:
+  * **AbortController Request Manager**: Aborts pending thumbnail downloads when switching tabs or clicking a photo.
+  * **HTML5 Video Decoder Cleanup**: Pauses, strips `src`, and calls `.load()` on `<video>` elements on swipe or exit, preventing decoder memory leaks.
+  * **Album Cover Art Selection**: Automatically selects the first photo file (`.jpg`/`.png`/`.heic`) as album cover art.
+  * **Clean Consumer UI**: Removed administrative buttons (`Settings`/`Logs`) for a pure photo browsing experience on mobile devices.
+* **`frontend/style.css`**: Premium dark theme featuring shimmer loading placeholders and iOS Photos glassmorphism video badges (`▶ VIDEO`).
+* **`frontend/manifest.json` & `frontend/sw.js`**: PWA registry (`photobridge-v28`) caching static app shell assets only.
 
 ---
 
