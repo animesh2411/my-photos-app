@@ -6,7 +6,7 @@ Reads and writes config.json with photos_dir and port settings.
 import json
 import os
 from pathlib import Path
-from app.paths import get_user_data_dir
+from .paths import get_user_data_dir
 
 
 CONFIG_FILE = "config.json"

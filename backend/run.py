@@ -36,6 +36,26 @@ class UvicornServerThread(threading.Thread):
     def stop(self):
         self.server.should_exit = True
 
+
+def start_server_in_thread(host: str, port: int) -> UvicornServerThread:
+    """Create and start a UvicornServerThread and return it.
+
+    This function allows embedding the server inside the same process (useful for
+    frozen single-exe deployments where spawning a separate python exe would
+    just relaunch the same executable).
+    """
+    server_thread = UvicornServerThread(host, port)
+    server_thread.start()
+    return server_thread
+
+
+def stop_server_thread(server_thread: UvicornServerThread) -> None:
+    try:
+        server_thread.stop()
+        server_thread.join(timeout=5.0)
+    except Exception:
+        pass
+
 if __name__ == "__main__":
     import atexit
     from app.media import clear_thumb_cache

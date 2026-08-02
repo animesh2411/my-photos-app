@@ -6,6 +6,7 @@ import threading
 import time
 import tkinter as tk
 from tkinter import messagebox, filedialog
+import importlib
 
 # Setup system paths for backend imports
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -392,11 +393,28 @@ class PhotoBridgeGUI:
             def stop():
                 try:
                     if self.server_process:
-                        # Send \n to run.py's stdin to stop uvicorn cleanly
-                        self.server_process.communicate(input="\n", timeout=4)
-                except Exception:
-                    if self.server_process:
-                        self.server_process.kill()
+                        # If server_process is a subprocess.Popen, send newline to stdin
+                        if isinstance(self.server_process, subprocess.Popen):
+                            try:
+                                self.server_process.communicate(input="\n", timeout=4)
+                            except Exception:
+                                try:
+                                    self.server_process.kill()
+                                except Exception:
+                                    pass
+                        else:
+                            # Otherwise assume it's a server thread with a stop() method
+                            try:
+                                # Some server thread wrappers expose stop()
+                                stop_fn = getattr(self.server_process, "stop", None)
+                                if callable(stop_fn):
+                                    stop_fn()
+                                    # If join available, wait briefly
+                                    join_fn = getattr(self.server_process, "join", None)
+                                    if callable(join_fn):
+                                        join_fn(timeout=5.0)
+                            except Exception:
+                                pass
                 finally:
                     self.server_process = None
                     self.server_running = False
@@ -416,11 +434,33 @@ class PhotoBridgeGUI:
             self.btn_run.configure(state="disabled")
             
             def start():
+                port = importlib.import_module('app.config').get_port_from_env()
+
+                # If running from a frozen single-executable, start the backend
+                # server embedded in this process to avoid relaunching the GUI exe.
+                if getattr(sys, "frozen", False):
+                    try:
+                        backend_run = importlib.import_module('backend.run')
+                        server_thread = backend_run.start_server_in_thread("0.0.0.0", port)
+                        self.server_process = server_thread
+                        # give it a moment to start
+                        time.sleep(1.5)
+                        if getattr(server_thread, 'error', None) or not getattr(server_thread.server, 'started', False):
+                            raise RuntimeError(getattr(server_thread, 'error', 'Failed to start embedded server'))
+
+                        self.server_running = True
+                        self.root.after(0, self.on_server_started)
+                        return
+                    except Exception as e:
+                        self.server_process = None
+                        self.server_running = False
+                        self.root.after(0, lambda: messagebox.showerror("Startup Error", f"Server failed to start: {e}"))
+                        self.root.after(0, self.on_server_stopped)
+                        return
+
+                # Non-frozen: spawn a subprocess using the current Python executable
                 try:
-                    python_exe = os.path.join(".venv", "Scripts", "python.exe")
-                    if not os.path.exists(python_exe):
-                        python_exe = "python"
-                        
+                    python_exe = sys.executable if sys.executable else "python"
                     creationflags = 0
                     if sys.platform == "win32":
                         creationflags = subprocess.CREATE_NO_WINDOW
@@ -431,25 +471,38 @@ class PhotoBridgeGUI:
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE,
                         text=True,
-                        creationflags=creationflags
+                        creationflags=creationflags,
                     )
-                    
+
                     # Start stdout/stderr drain threads to prevent OS buffer locks
                     threading.Thread(target=self.drain_stream, args=(self.server_process.stdout,), daemon=True).start()
                     threading.Thread(target=self.drain_stream, args=(self.server_process.stderr,), daemon=True).start()
-                    
-                    # Give it 1.5 seconds to initialize
+
                     time.sleep(1.5)
-                    
+
                     if self.server_process.poll() is not None:
                         # Process exited due to startup error
-                        self.server_running = False
+                        err_text = None
+                        try:
+                            out, err = self.server_process.communicate(timeout=1)
+                            if err:
+                                err_text = err.strip()
+                            elif out:
+                                err_text = out.strip()
+                        except Exception:
+                            err_text = None
+
                         self.server_process = None
-                        self.root.after(0, lambda: messagebox.showerror("Startup Error", "Server failed to start. Please wait a few seconds for port 8000 to clear, or check if another app is using port 8000."))
+                        if err_text:
+                            self.root.after(0, lambda: messagebox.showerror("Startup Error", f"Server failed to start:\n{err_text}"))
+                        else:
+                            self.root.after(0, lambda: messagebox.showerror("Startup Error", "Server failed to start. Please wait a few seconds for port 8000 to clear, or check if another app is using port 8000."))
                         self.root.after(0, self.on_server_stopped)
-                    else:
-                        self.server_running = True
-                        self.root.after(0, self.on_server_started)
+                        return
+
+                    self.server_running = True
+                    self.root.after(0, self.on_server_started)
+                    return
                 except Exception as e:
                     self.server_running = False
                     self.root.after(0, lambda: messagebox.showerror("Error", f"Failed to start server: {e}"))

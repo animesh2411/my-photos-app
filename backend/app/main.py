@@ -14,14 +14,14 @@ import asyncio
 import tkinter as tk
 from tkinter import filedialog
 
-from app.config import get_config, set_photos_dir, get_port_from_env
-from app.paths import resource_path
-from app.scanner import MediaIndex, decode_id
-from app.media import generate_thumbnail, get_range_response
+from .config import get_config, set_photos_dir, get_port_from_env
+from .paths import resource_path
+from .scanner import MediaIndex, decode_id
+from .media import generate_thumbnail, get_range_response
 
 
 import time
-from app.logger import log_event, get_logs, clear_logs
+from .logger import log_event, get_logs, clear_logs
 
 app = FastAPI(title="PhotoBridge")
 
@@ -82,7 +82,7 @@ def get_lan_ip() -> str:
 
 
 from fastapi import Request, Header, HTTPException, status
-from app.config import set_access_pin
+from .config import set_access_pin
 
 def verify_local_request(request: Request):
     """Ensure configuration endpoints are only called from localhost."""
@@ -177,7 +177,7 @@ async def api_select_folder(req: Request):
         raise HTTPException(status_code=500, detail=f"Failed to open folder picker: {str(e)}")
 
 
-from app.logger import log_event, get_logs, clear_logs
+from .logger import log_event, get_logs, clear_logs
 
 # ============================================================================
 # API Endpoints: Logs
@@ -375,7 +375,7 @@ async def startup_event():
     Actual file scanning happens lazily per-album on demand.
     Album counting runs in a background thread so server is ready instantly.
     """
-    from app.config import ensure_config_exists
+    from .config import ensure_config_exists
     ensure_config_exists()
 
     config = get_config()
@@ -394,6 +394,6 @@ def shutdown_event():
     """
     On server shutdown: clean up .thumbcache directory.
     """
-    from app.media import clear_thumb_cache
+    from .media import clear_thumb_cache
     clear_thumb_cache()
 
