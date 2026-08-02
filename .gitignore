@@ -18,5 +18,8 @@ var/
 wheels/
 .venv/
 .env
-.DS_Store
+.thumbcache/
+backend/.thumbcache/
+backend/certs/
 backend/app.log
+.DS_Store
