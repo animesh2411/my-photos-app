@@ -15,6 +15,7 @@ import tkinter as tk
 from tkinter import filedialog
 
 from app.config import get_config, set_photos_dir, get_port_from_env
+from app.paths import resource_path
 from app.scanner import MediaIndex, decode_id
 from app.media import generate_thumbnail, get_range_response
 
@@ -358,7 +359,7 @@ def api_download_media(media_id: str, range: str = Header(None), dependencies=De
 # ============================================================================
 
 # Mount static files (frontend) at the root, with index.html as the default
-static_dir = os.path.join(os.path.dirname(__file__), "..", "..", "frontend")
+static_dir = resource_path("frontend")
 if os.path.exists(static_dir):
     app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
 

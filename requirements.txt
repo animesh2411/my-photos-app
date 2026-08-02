@@ -3,4 +3,4 @@ uvicorn[standard]
 pillow
 pillow-heif
 python-multipart
-
+pyinstaller

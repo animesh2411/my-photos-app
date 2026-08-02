@@ -1,0 +1,112 @@
+name: Build and Release PhotoBridge
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.14'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Build PyInstaller executable
+        run: |
+          # Run PyInstaller with the spec file
+          pyinstaller PhotoBridge.spec
+          # Verify the output exists
+          if (-not (Test-Path "dist\PhotoBridge\PhotoBridge.exe")) {
+            Write-Error "PhotoBridge.exe was not created"
+            exit 1
+          }
+          Write-Host "✓ PhotoBridge.exe created successfully"
+
+      - name: Install Inno Setup
+        run: |
+          choco install innosetup -y
+
+      - name: Compile Inno Setup installer
+        run: |
+          # Create installer output directory
+          New-Item -ItemType Directory -Path "installer-output" -Force
+          # Compile the installer
+          & "C:\Program Files (x86)\Inno Setup 6\iscc.exe" "installer\PhotoBridge.iss"
+          # Verify the output exists
+          if (-not (Test-Path "installer-output\PhotoBridgeSetup.exe")) {
+            Write-Error "PhotoBridgeSetup.exe was not created"
+            exit 1
+          }
+          Write-Host "✓ PhotoBridgeSetup.exe created successfully"
+
+      - name: Generate version tag from commit SHA
+        id: version
+        run: |
+          $shortSha = "${{ github.sha }}".Substring(0, 7)
+          $version = "v0.1.0-$shortSha"
+          echo "version=$version" >> $env:GITHUB_OUTPUT
+          Write-Host "Generated version: $version"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          release_name: "PhotoBridge ${{ steps.version.outputs.version }}"
+          body: |
+            ## Automated Release
+            
+            This is an automated release built from commit ${{ github.sha }}.
+            
+            **Installation Instructions:**
+            1. Download `PhotoBridgeSetup.exe` below
+            2. Run the installer
+            3. Follow the on-screen prompts
+            4. The Windows Firewall rule for port 8000 will be configured during installation
+            
+            **Release Details:**
+            - Built on: ${{ github.event.head_commit.timestamp }}
+            - Commit: ${{ github.sha }}
+            - Branch: ${{ github.ref_name }}
+          files: |
+            installer-output/PhotoBridgeSetup.exe
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload build artifacts
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: PhotoBridge-build-${{ github.run_number }}
+          path: |
+            dist/
+            installer-output/
+          retention-days: 30
+
+      - name: Print build summary
+        run: |
+          Write-Host "========================================" -ForegroundColor Green
+          Write-Host "✓ Build completed successfully!" -ForegroundColor Green
+          Write-Host "========================================" -ForegroundColor Green
+          Write-Host ""
+          Write-Host "Release: ${{ steps.version.outputs.version }}"
+          Write-Host "Installer: installer-output/PhotoBridgeSetup.exe"
+          Write-Host "GitHub Release: https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.version }}"
+          Write-Host ""
+

@@ -6,6 +6,7 @@ Reads and writes config.json with photos_dir and port settings.
 import json
 import os
 from pathlib import Path
+from app.paths import get_user_data_dir
 
 
 CONFIG_FILE = "config.json"
@@ -17,8 +18,12 @@ DEFAULT_CONFIG = {
 
 
 def get_config_path() -> str:
-    """Get the absolute path to config.json."""
-    return os.path.join(os.getcwd(), CONFIG_FILE)
+    r"""
+    Get the absolute path to config.json.
+    Uses %LOCALAPPDATA%\PhotoBridge on Windows for proper app data storage.
+    """
+    data_dir = get_user_data_dir()
+    return os.path.join(data_dir, CONFIG_FILE)
 
 
 def ensure_config_exists():

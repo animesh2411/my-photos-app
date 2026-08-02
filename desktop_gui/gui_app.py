@@ -336,7 +336,7 @@ class PhotoBridgeGUI:
         def run():
             ps_cmd = (
                 "if (-not (Get-NetFirewallRule -DisplayName ''PhotoBridge Port 8000'' -ErrorAction SilentlyContinue)) { "
-                "New-NetFirewallRule -DisplayName ''PhotoBridge Port 8000'' -Direction Inbound -LocalPort 8000 -Protocol TCP -Action Allow -Profile Private "
+                "New-NetFirewallRule -DisplayName ''PhotoBridge Port 8000'' -Direction Inbound -LocalPort 8000,8443 -Protocol TCP -Action Allow -Profile Private "
                 "}"
             )
             cmd = [
@@ -479,7 +479,6 @@ class PhotoBridgeGUI:
 
         from app.config import get_port_from_env
         port = get_port_from_env()
-
         self.url_label.configure(
             text=f"Local:   http://localhost:{port}\nPhone:  http://{lan_ip}:{port}   (same Wi-Fi)",
             fg=TEXT_COLOR
