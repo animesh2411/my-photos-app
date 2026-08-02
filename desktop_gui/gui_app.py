@@ -16,6 +16,14 @@ backend_path = os.path.join(project_root, "backend")
 if backend_path not in sys.path:
     sys.path.insert(0, backend_path)
 
+# Ensure `app` package can be imported after we adjusted sys.path. This helps both runtime
+# imports and static analyzers that look for the package.
+try:
+    import app  # type: ignore
+except Exception:
+    # Import may fail during static analysis or in certain frozen contexts; fall back silently.
+    pass
+
 # Design Tokens (Harmonious Dark Theme)
 BG_COLOR = "#000000"
 CARD_BG = "#1c1c1e"
@@ -251,8 +259,7 @@ class PhotoBridgeGUI:
     def update_folder_label(self):
         """Read config.json and update the directory label text in the GUI."""
         try:
-            from app.config import get_config
-            config = get_config()
+            config = importlib.import_module('app.config').get_config()
             folder = config.get("photos_dir")
             if folder:
                 self.dir_val.configure(text=folder, fg=TEXT_COLOR)
@@ -277,10 +284,10 @@ class PhotoBridgeGUI:
             def update_via_api():
                 import urllib.request
                 import json
-                from app.config import get_port_from_env, get_config
-                port = get_port_from_env()
+                cfg = importlib.import_module('app.config')
+                port = cfg.get_port_from_env()
                 try:
-                    config = get_config()
+                    config = cfg.get_config()
                     headers = {'Content-Type': 'application/json'}
                     if config.get("pin_required") and config.get("access_pin"):
                         headers['X-PhotoBridge-PIN'] = config["access_pin"]
@@ -299,8 +306,7 @@ class PhotoBridgeGUI:
                 except OSError:
                     # Connection refused — server died externally, fall back to direct write
                     try:
-                        from app.config import set_photos_dir
-                        set_photos_dir(selected_dir)
+                        importlib.import_module('app.config').set_photos_dir(selected_dir)
                         self.root.after(0, lambda: self._on_dir_updated(selected_dir))
                     except Exception as e2:
                         self.root.after(0, lambda: self._on_dir_update_failed(str(e2)))
@@ -312,8 +318,7 @@ class PhotoBridgeGUI:
             # Run the file write in a background thread too, for safety
             def save_to_config():
                 try:
-                    from app.config import set_photos_dir
-                    set_photos_dir(selected_dir)
+                    importlib.import_module('app.config').set_photos_dir(selected_dir)
                     self.root.after(0, lambda: self._on_dir_updated(selected_dir))
                 except Exception as e:
                     self.root.after(0, lambda: self._on_dir_update_failed(str(e)))
@@ -397,8 +402,7 @@ class PhotoBridgeGUI:
                     self.server_running = False
                     
                     try:
-                        from app.media import clear_thumb_cache
-                        clear_thumb_cache()
+                        importlib.import_module('app.media').clear_thumb_cache()
                     except Exception:
                         pass
 
@@ -477,8 +481,7 @@ class PhotoBridgeGUI:
         except Exception:
             lan_ip = "127.0.0.1"
 
-        from app.config import get_port_from_env
-        port = get_port_from_env()
+        port = importlib.import_module('app.config').get_port_from_env()
         self.url_label.configure(
             text=f"Local:   http://localhost:{port}\nPhone:  http://{lan_ip}:{port}   (same Wi-Fi)",
             fg=TEXT_COLOR
@@ -535,8 +538,7 @@ class PhotoBridgeGUI:
             log_text.delete("1.0", tk.END)
 
             try:
-                from app.logger import get_logs
-                logs = get_logs()
+                logs = importlib.import_module('app.logger').get_logs()
                 if not logs:
                     log_text.insert(tk.END, "No logs recorded yet.\n", "TIME")
                 else:
@@ -563,8 +565,7 @@ class PhotoBridgeGUI:
 
         def clear_logs_action():
             try:
-                from app.logger import clear_logs
-                clear_logs()
+                importlib.import_module('app.logger').clear_logs()
                 fetch_logs()
             except Exception:
                 pass
@@ -602,25 +603,42 @@ class PhotoBridgeGUI:
                     self.server_process.kill()
 
         try:
-            from app.media import clear_thumb_cache
-            clear_thumb_cache()
+            importlib.import_module('app.media').clear_thumb_cache()
         except Exception:
             pass
 
         self.root.destroy()
 
 if __name__ == "__main__":
-    # Ensure working directory is the project directory
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.dirname(script_dir)
-    os.chdir(project_root)
+    # Ensure working directory is the project directory.
+    # When running as a PyInstaller frozen exe, use sys._MEIPASS as the base.
+    if getattr(sys, "frozen", False):
+        base_dir = getattr(sys, "_MEIPASS", None)
+        if base_dir:
+            try:
+                os.chdir(base_dir)
+            except Exception:
+                # Fall back to current file location if chdir fails
+                script_dir = os.path.dirname(os.path.abspath(__file__))
+                project_root = os.path.dirname(script_dir)
+                os.chdir(project_root)
+        else:
+            # No _MEIPASS available — fall back to script location
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            project_root = os.path.dirname(script_dir)
+            os.chdir(project_root)
+    else:
+        # Normal (development) execution
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(script_dir)
+        os.chdir(project_root)
 
     # Clean leftover thumbnails on launch & register atexit hook
     import atexit
     try:
-        from app.media import clear_thumb_cache
-        clear_thumb_cache()
-        atexit.register(clear_thumb_cache)
+        clear_thumb = importlib.import_module('app.media').clear_thumb_cache
+        clear_thumb()
+        atexit.register(clear_thumb)
     except Exception:
         pass
 
