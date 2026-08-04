@@ -1,333 +1,86 @@
-# PhotoBridge — Complete Implementation ✅
+# PhotoBridge — Completion Report ✅
 
-## Project Overview
+## 1. Project Overview
 
-**PhotoBridge** is a fully-implemented local network photo browser for iPhone. It's a Progressive Web App (PWA) that runs on a Windows laptop and allows you to browse your photos/videos on your iPhone via Safari on the same WiFi network.
+**PhotoBridge** is a lightweight, local network photo/video browser tailored for iPhone browsers. It operates directly from a host Windows laptop and allows devices on the same Wi-Fi network to browse and stream local photos in a responsive, Apple Photos-style progressive web application (PWA).
 
-**Status: READY FOR USE** 🚀
-
-## Project Structure
-
-```
-my-photos-app/
-├── app/                           # Backend Python modules
-│   ├── __init__.py               # Package marker
-│   ├── main.py                   # FastAPI application (routes)
-│   ├── config.py                 # Config management (config.json I/O)
-│   ├── scanner.py                # Filesystem scanning + EXIF extraction
-│   └── media.py                  # Thumbnail generation + file streaming
-│
-├── static/                        # Frontend (Progressive Web App)
-│   ├── index.html                # PWA HTML structure
-│   ├── app.js                    # Single-page app (vanilla JS)
-│   ├── style.css                 # Dark theme CSS (iOS Photos aesthetic)
-│   ├── manifest.json             # PWA manifest (standalone, dark theme)
-│   ├── sw.js                     # Service Worker (caches static, not API)
-│   └── icons/
-│       ├── icon-180.png          # Home screen icon (small)
-│       └── icon-512.png          # Home screen icon (large)
-│
-├── run.py                        # Entry point (starts uvicorn on 0.0.0.0)
-├── requirements.txt              # Python dependencies
-├── config.json                   # Auto-created on first run
-├── .gitignore                    # Excludes config.json
-├── README.md                     # Full documentation
-└── test_api.py                   # API test script
-```
-
-## ✅ What's Implemented
-
-### Backend API (All Endpoints Working)
-- ✅ `GET /api/config` — Get current configuration
-- ✅ `POST /api/config` — Set photos folder path (with validation)
-- ✅ `POST /api/select-folder` — Open native folder selection dialog on server
-- ✅ `GET /api/albums` — List all top-level album folders instantly
-- ✅ `GET /api/media` — List media objects with pagination
-- ✅ `GET /api/logs` — Fetch recent application logs (JSON)
-- ✅ `DELETE /api/logs` — Clear in-memory & file log buffer
-- ✅ `GET /api/thumb/{id}?w=300` — ThreadPool offloaded JPEG thumbnail generator with disk cache
-- ✅ `GET /api/preview/{id}` — 1200px screen-resolution preview JPEG generator
-- ✅ `GET /api/full/{id}` — Stream full media files with HTTP range requests for video seeking
-- ✅ `GET /api/download/{id}` — Download endpoint (for Save to Photos)
-- ✅ HTTP Request Logging Middleware — Logs method, path, status code, client IP, and latency (`ms`)
-- ✅ Static file serving (frontend)
-
-### Desktop Control Center & Infrastructure (All Working)
-- ✅ **desktop_gui/gui_app.py** — Native Windows Control Center (`520x680` geometry)
-- ✅ **`📋 View Server Logs`** — Live auto-refreshing (1.5s interval) Tkinter log window
-- ✅ **One-Click Firewall Rule Setup** — Admin-elevated PowerShell execution (`netsh`)
-- ✅ **Windowless Server Launcher** — Background Python server process (`subprocess.CREATE_NO_WINDOW`)
-- ✅ **Automatic Cache Purge** — `clear_thumb_cache()` auto-wipes `backend/.thumbcache/` on exit and launch
-
-### Frontend Features (All Working)
-- ✅ Setup screen (enter path or click "Browse Laptop..." to select folder)
-- ✅ Date-grouped photo grid with Instagram-style shimmer placeholders
-- ✅ iOS Photos glassmorphism video badges (`▶ VIDEO`) on video tiles
-- ✅ Tab navigation (All Photos / Albums / Favorites)
-- ✅ Automatic album cover photo selection (prioritizes photos over video clips)
-- ✅ Search by filename (live filtering)
-- ✅ Full-screen image/video viewer with range scrubbing controls
-- ✅ Touch swipe & keyboard arrow navigation
-- ✅ `AbortController` cancellation for in-flight requests on tab switch or image click
-- ✅ HTML5 `<video>` decoder memory cleanup on swipe or exit
-- ✅ Automatic top-scroll reset (`scrollTop = 0`) on tab switch and album opening
-- ✅ Favorites with localStorage persistence
-- ✅ Save to Photos button (iOS Web Share API)
-- ✅ Pull-to-rescan gesture
-- ✅ Clean consumer UI (no administrative buttons on phone view)
-
-### Advanced Privacy & Security (All Working)
-- ✅ **`Cache-Control: private, no-store, must-revalidate`** — Strict mobile privacy preventing phone disk storage of media
-- ✅ HTTP range requests (video seeking/scrubbing)
-- ✅ Process-safe file-backed logger (`backend/app.log`)
-- ✅ Live Photos pairing (`.HEIC`/`.JPG` + `.MOV`/`.MP4`) with concentric LIVE badge & press-and-hold playback
-- ✅ EXIF date extraction (images) and mtime fallback (videos)
-- ✅ HEIC/HEIF image format support (pillow-heif)
-- ✅ URL-safe base64 media IDs (security)
-- ✅ Service worker (`v28`) caching app shell only
-- ✅ Localhost loopback lock on config endpoints (403 Forbidden for remote calls)
-- ✅ Access PIN security lock screen (401 Unauthorized protection)
-
-## Quick Start
-
-### 1. Start the Server (Double-Click Launcher - Recommended)
-Simply **double-click the `local-batch-files/run_app.bat` file** in the project folder. This will automatically check your Python environment, create an isolated virtual environment (`.venv`), install dependencies, and run the server.
-
-### 2. Start the Server (Manual Command Line)
-If you prefer running manual commands:
-```bash
-pip install -r requirements.txt
-python run.py
-```
-
-You'll see:
-```
-======================================================================
-PhotoBridge Server is RUNNING!
-Local:  http://localhost:8000
-Phone:  http://192.168.1.8:8000   (same WiFi)
-Photos folder: not yet configured — open the app and complete setup
-======================================================================
-```
-
-### 3. Open on iPhone
-- Find your laptop's LAN IP (from the output above)
-- Open Safari on your iPhone on the same WiFi
-- Go to `http://<your-laptop-ip>:8000`
-- Enter the full path to your photos folder (e.g., `C:\Users\You\Pictures`)
-- Browse and enjoy!
-
-### 4. (Optional) Add to Home Screen
-- Tap Share (↗️) in Safari
-- Tap "Add to Home Screen"
-- Name it "PhotoBridge"
-- It now appears as a full-screen app with no Safari chrome
-
-## Testing
-
-Run the API test suite:
-```bash
-python test_api.py
-```
-
-Expected output:
-```
-======================================================================
-PhotoBridge API Test
-======================================================================
-
-1. GET /api/config
-   Status: ✓
-   Response: {...configured config...}
-
-2. GET /api/media
-   Status: ✓
-   Media count: 1 (or more if photos folder has content)
-
-3. GET /api/thumb/{id}
-   Status: ✓
-   Thumbnail size: XXX bytes
-
-4. GET /api/full/{id}
-   Status: ✓
-   File size: XXX bytes
-
-======================================================================
-All tests completed!
-======================================================================
-```
-
-## Configuration
-
-`config.json` is auto-created on first run:
-```json
-{
-  "photos_dir": null,
-  "port": 8000
-}
-```
-
-- **photos_dir**: Only set through the app setup screen (never hardcoded)
-- **port**: Default 8000, can be overridden with `PORT` env var:
-  ```bash
-  set PORT=9000
-  python run.py
-  ```
-
-## File Format Support
-
-### Images
-- `.jpg`, `.jpeg`, `.png`, `.heic`, `.heif`, `.gif`, `.webp`
-
-### Videos
-- `.mp4`, `.mov`, `.m4v`
-
-## Key Design Decisions
-
-1. **No Hardcoded Folder** — Folder path is chosen at runtime, not in config file
-2. **No Database** — Metadata derived from filesystem each time (or on-demand via rescan)
-3. **No Cloud** — Everything stays on local network
-4. **No Login** — Assumes trusted local network only
-5. **No External Framework (Frontend)** — Vanilla JS only, PWA-ready
-6. **HTTP Range Requests** — Videos can be scrubbed without downloading fully
-7. **URL-Safe IDs** — Base64-encoded relative paths (safe in URLs)
-8. **Service Worker** — Caches only static files, never caches API data
-
-## Running as a Background Service (Windows)
-
-### Option 1: Task Scheduler
-1. Open Task Scheduler
-2. Create Basic Task → name "PhotoBridge"
-3. Trigger: "At startup"
-4. Action: Start `python.exe` with arguments:
-   ```
-   C:\path\to\my-photos-app\run.py
-   ```
-5. Check "Run whether user is logged in or not"
-
-### Option 2: NSSM (Non-Sucking Service Manager)
-```bash
-nssm install PhotoBridge "C:\Python\python.exe" "C:\path\to\my-photos-app\run.py"
-nssm start PhotoBridge
-```
-
-## Dependencies
-
-All specified in `requirements.txt`:
-- **fastapi** — Web framework
-- **uvicorn[standard]** — ASGI server
-- **pillow** — Image processing
-- **pillow-heif** — HEIC/HEIF format support
-- **python-multipart** — Multipart form data
-
-All installed and verified working ✅
-
-## Performance Notes
-
-- In-memory media index (very fast scanning)
-- Lazy-loaded thumbnails (300px by default)
-- HTTP range requests for video seeking (efficient)
-- Service worker caches static files (instant reload)
-- API responses never cached (always fresh)
-
-## Known Limitations
-
-1. **Slideshow** — Stub implemented (shows "coming soon" toast)
-   - Easy to add: just set a timer to advance viewer index every 3.5s
-2. **Album depth** — Only immediate subfolders become albums
-   - By design for simpler UX
-3. **Video thumbnails** — Not generated (endpoint returns 204 No Content)
-   - By design: uses placeholder instead, not a limitation
-
-## Troubleshooting
-
-| Issue | Solution |
-|-------|----------|
-| Port 8000 already in use | Set `PORT=9000` before running |
-| iPhone can't reach laptop | Check both on same WiFi, check firewall |
-| Photos don't appear | Check folder path is correct, try pull-to-rescan |
-| HEIC thumbnails fail | App still works! HEIC displays natively; only thumbnail generation affected |
-
-## Extending PhotoBridge
-
-### Add Slideshow
-In `app.js`, modify `toggleSlideshow()` to set an interval that calls `nextMedia()` every 3.5 seconds.
-
-### Custom App Icons
-Replace `static/icons/icon-180.png` and `icon-512.png` with your own designs (180x180 and 512x512 PNG).
-
-### Dark Mode Toggle
-Modify `style.css` to add a light theme, then add a toggle button in the UI.
-
-### Metadata Display
-Enhance the viewer to show EXIF data (camera, lens, ISO, etc.) by parsing image metadata in `app/scanner.py`.
-
-## 🛡️ Security & PWA Redesigns (Recent Upgrades)
-
-### LAN Security Upgrades
-- **Localhost Directory Setup Protection**: Restricted folder browsing and saving APIs (`POST /api/select-folder` and `POST /api/config`) to `localhost`/`127.0.0.1`. Remote network clients attempting configuration tampering are rejected with a `403 Forbidden` error.
-- **Optional Access PIN Encryption**: Added a custom `access_pin` validation check (`Depends(verify_access_pin)`) on all media streams. Authorized access is granted via standard header authentication (`X-PhotoBridge-PIN`) or image element query parameters (`?pin=XXXX`). Unauthenticated connections trigger a glassmorphic PIN entry lock screen.
-
-### PWA Navigational Redesigns
-- **Albums Card Grid**: Redesigned the Albums tab to show a full-screen, grid-based card directory displaying folder names, total items, and dynamic cover photos (the first image in the subfolder). Details views open inside album subnavigation with a sticky back header.
-- **Circular SVG Viewer Controls**: Upgraded text icon buttons to premium circular vector SVG elements with custom iOS-red favorite toggles and tap scale transformations.
-
-### Desktop Control Center GUI (Windows Launcher)
-- **Tkinter Dashboard**: Features a native [gui_app.py](file:///f:/CodeX/PyCharmProjects/my-photos-app/gui_app.py) app providing status card widgets, live connection URL strings, and dynamic layout resizing / text wrapping controls.
-- **Console-Free Execution**: Spawns Python uvicorn server in background processes using `creationflags=subprocess.CREATE_NO_WINDOW` on Windows, keeping execution completely hidden.
-- **Background UAC Elevation**: Uses `Start-Process powershell -Verb RunAs -WindowStyle Hidden` and escaped single quoting to run administrative setups and removals invisibly in background threads with zero Command Prompt windows showing on screen.
-- **Double-Click Launcher**: Includes [run_control_center.bat](file:///f:/CodeX/PyCharmProjects/my-photos-app/run_control_center.bat) which initiates the virtual environment and starts the GUI dashboard using `pythonw.exe` to suppress the command prompt wrapper window.
-
-## Directory Structure at Runtime
-
-After first run:
-```
-my-photos-app/
-├── backend/                  # Backend code modules
-│   ├── app/                  # FastAPI app package
-│   ├── run.py                # Server entry point
-│   ├── test_api.py           # API testing script
-│   ├── diagnose.py           # Diagnostics utility
-│   └── create_icons.py       # PWA icons generator
-├── frontend/                 # PWA frontend static assets
-├── desktop_gui/              # Desktop GUI controller app
-│   ├── gui_app.py            # Laptop controller GUI (Tkinter)
-│   └── icon.ico              # Windows app shortcut icon
-├── run_control_center.bat    # Windows launcher batch script for the GUI (root)
-├── local-batch-files/         # CLI launchers and legacy setup scripts
-│   ├── run_app.bat           # CLI server launcher
-│   ├── setup.bat             # Admin firewall setup script
-│   └── uninstall.bat         # Admin firewall cleanup script
-├── requirements.txt
-├── config.json              # ← Created by app (machine-specific)
-├── .gitignore               # ← Excludes config.json
-├── README.md                # Simplified user guide
-└── local-md-files/           # Developer documentation folder
-    ├── requirement.md       # Functional specs
-    ├── IMPLEMENTATION.md    # Logs details
-    ├── COMPLETION_REPORT.md # Completion status
-    ├── ARCHITECTURE.md      # Modules breakdown
-    ├── CONTRIBUTING.md      # Guidelines
-    └── developer_guide.md   # Troubleshooting and manuals
-```
-
-## Next Steps for User
-
-1. **Stop any running instance** (none right now)
-2. **Run the server**:
-   ```bash
-   python run.py
-   ```
-3. **Open on iPhone** and complete the setup wizard
-4. **Enjoy browsing photos!** 📸
+**Status: PRODUCTION-READY & AUTOMATED** 🚀
 
 ---
 
-**PhotoBridge is complete and ready to use!** 🎉
+## 2. Updated Project Structure
 
-All code is production-ready. The app handles edge cases (corrupt files, missing folders, unsupported formats) gracefully. Tested and verified working.
+```
+my-photos-app/
+├── .github/
+│   └── workflows/
+│       └── release.yml       # GitHub Actions CI/CD release workflow
+├── backend/
+│   ├── app/
+│   │   ├── __init__.py       # Package marker
+│   │   ├── main.py           # FastAPI routes & thread-pool controllers
+│   │   ├── config.py         # Configuration manager (config.json I/O)
+│   │   ├── scanner.py        # Filesystem scanner & metadata generator
+│   │   ├── paths.py          # AppData / sys._MEIPASS paths manager
+│   │   └── media.py          # HEIC decoder & seekable range streaming
+│   ├── run.py                # Server entry point & thread daemon
+│   ├── test_api.py           # REST API test suite
+│   └── diagnose.py           # Diagnostics utility
+├── frontend/
+│   ├── index.html            # PWA template HTML
+│   ├── app.js                # Vanilla JS state engine
+│   ├── style.css             # Glassmorphic dark styling
+│   ├── manifest.json         # PWA app registry
+│   ├── sw.js                 # Service worker
+│   └── icons/                # Home screen icon graphics
+├── desktop_gui/
+│   ├── gui_app.py            # Laptop controller GUI (Tkinter)
+│   └── icon.ico              # Windows app icon file
+├── installer/
+│   └── PhotoBridge.iss       # Inno Setup compiler configuration
+├── PhotoBridge.spec          # PyInstaller compilation specification
+├── requirements.txt          # Unified runtime/build dependencies list
+├── README.md                # Standard user documentation
+└── local-md-files/           # Developer documentation folder
+    ├── requirement.md       # Functional specs
+    ├── IMPLEMENTATION.md    # Code roadmap log
+    ├── COMPLETION_REPORT.md # Completion status summary
+    ├── ARCHITECTURE.md      # System data & module architectures
+    ├── CONTRIBUTING.md      # Code styling rules
+    └── developer_guide.md   # Setup manuals & troubleshooting
+```
 
-For full documentation, see `README.md`.
+---
 
-Generated: July 6, 2026
+## 3. Key Achievements & Solutions Implemented
 
+### 📦 1. Zero-Dependency Standalone Packaging
+- **PyInstaller Bundling**: Integrated PyInstaller using `PhotoBridge.spec` to pack the Python runtime, Tkinter GUI, FastAPI server, and HTML/CSS/JS frontend files into a single standalone program directory.
+- **Relocated Data Directories**: Implemented write-safe path redirection in `paths.py`. In frozen mode, read-only assets are read from `sys._MEIPASS`, while configurations, logs, and caches are stored safely under `%LOCALAPPDATA%\PhotoBridge` to prevent permission-denied crashes inside protected system directories (such as `Program Files`).
+
+### 🛡️ 2. Native UAC Inbound Firewall Setup
+- **Elevated Win32 ShellExecuteW**: Refactored the control center's firewall rules script to execute PowerShell commands via the Win32 `ShellExecuteW` API using the `"runas"` verb. This triggers the native Windows UAC prompt directly, avoiding nested-shell escaping crashes and visible console screens.
+- **Inno Setup Integration**: Created `PhotoBridge.iss` to compile the app into a single one-click `PhotoBridgeSetup.exe` installer. It handles desktop shortcut configurations and automatically registers inbound TCP Port 8000 rules on private Wi-Fi profiles during setup.
+
+### 🧵 3. FastAPI Performance & Liveness
+- **Thread Pool Offloading**: Converted recursive file-scanning, database writes, and image processing endpoints in `main.py` to standard synchronous `def` routes. FastAPI offloads these blocking IO calls to its worker thread pool, preventing asyncio event loop blocking and eliminating media loading timeouts.
+- **Background Server Monitor**: Changed the GUI to launch the Uvicorn server in-process as a background thread daemon (`UvicornServerThread`) when frozen, suppressing default Uvicorn logger initializations (`log_config=None`) to prevent crashes in console-less environments. Monitors server liveness in the GUI status check loop.
+
+### 🚀 4. Automated CI/CD releases
+- **Full Release Automation**: Built a GitHub Actions workflow `.github/workflows/release.yml` running on `windows-latest`.
+- **Auto-Versioning**: Every commit merged into `master` automatically triggers the build, fetches existing git tags, increments the patch version (e.g. `v0.1.1` -> `v0.1.2`), tags the commit, pushes it to GitHub, and publishes a public Release with `PhotoBridgeSetup.exe` attached.
+
+---
+
+## 4. Summary of Completed Deliverables
+
+| Deliverable | Status | Description |
+|---|---|---|
+| Standalone Package | ✅ Complete | Single executable bundle created via PyInstaller |
+| Setup Installer | ✅ Complete | One-click `PhotoBridgeSetup.exe` generated via Inno Setup |
+| UAC Elevation | ✅ Complete | ShellExecuteW wrapper successfully manages inbound port rules |
+| Thread Pool Offloading | ✅ Complete | Heavy I/O routes converted to def to prevent asyncio timeouts |
+| Live Log Viewer | ✅ Complete | GUI reads relocated `app.log` in real time |
+| CI/CD Automation | ✅ Complete | Auto-tagging and release publishing configured on master pushes |
+
+Generated: August 5, 2026

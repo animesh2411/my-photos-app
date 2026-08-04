@@ -1,6 +1,6 @@
-# PhotoBridge Developer Guide
+# PhotoBridge Developer & Packaging Guide
 
-This guide is intended for developers, contributors, and power users who want to modify PhotoBridge, run API tests, configure manual firewall profiles, or troubleshoot low-level backend configurations.
+This guide is intended for developers, contributors, and power users who want to modify PhotoBridge, run API tests, configure manual firewall profiles, build standalone executables, or troubleshoot low-level backend configurations.
 
 For high-level system details, see:
 * 🗺️ **[System Architecture Diagram & Flow charts](file:///f:/CodeX/PyCharmProjects/my-photos-app/local-md-files/ARCHITECTURE.md)**
@@ -8,42 +8,68 @@ For high-level system details, see:
 
 ---
 
-## 🛠️ Manual Installation & Packages
+## 🛠️ Installation & Dependency Management
 
-If you do not want to use the automated `run_control_center.bat` or `local-batch-files/run_app.bat` launchers, you can set up Python dependencies manually:
-
+### 1. Development Mode (Running from Source)
+Set up Python dependencies in your virtual environment:
 ```bash
 pip install -r requirements.txt
 ```
 
-### Key Dependencies Explained:
+#### Key Dependencies:
 * **`fastapi`**: ASGI web framework serving our endpoints.
 * **`uvicorn[standard]`**: High-performance ASGI server for hosting FastAPI.
 * **`pillow`**: Image resizing and on-the-fly thumbnail caching.
 * **`pillow-heif`**: Direct decoding of Apple's `.heic` and `.heif` files inside Python.
-* **`python-multipart`**: Form payload handling (required by FastAPI endpoints).
+* **`pyinstaller`**: Packs the code and assets into a standalone distribution.
+
+### 2. Standalone Windows Executable
+No Python installation is required when running from the compiled executable.
+- Run the packaged exe directly: `dist\PhotoBridge\PhotoBridge.exe`
+- Or use the one-click installer: `dist\PhotoBridgeSetup.exe` (generated via Inno Setup).
 
 ---
 
-## 🔒 Manual Firewall Rules & UAC Setup
+## 📦 Building and Packaging Standalone Builds
 
-If you prefer to configure the inbound rule manually instead of clicking **1. Configure Firewall** inside the Control Center GUI, you can run these commands:
-
-### 1. Allow Port 8000 via PowerShell (Admin)
-Open a UAC-elevated PowerShell command prompt and run:
-```powershell
-New-NetFirewallRule -DisplayName "PhotoBridge Port 8000" -Direction Inbound -LocalPort 8000 -Protocol TCP -Action Allow -Profile Private
+### 1. PyInstaller Executable Compilation
+The compilation is managed via the version-controlled PyInstaller spec file:
+```bash
+pyinstaller PhotoBridge.spec --noconfirm
 ```
+This bundles the Tkinter desktop GUI, backend FastAPI server, and static frontend assets into a single distribution directory under `dist/PhotoBridge/`. 
 
-### 2. Allow Port 8000 via netsh (Admin CMD)
-Alternatively, from an elevated Command Prompt window:
+*Note: In frozen mode, read-only assets are extracted to `sys._MEIPASS` at runtime, while user-writable assets (configurations, logs, and caches) are relocated to `%LOCALAPPDATA%\PhotoBridge` to bypass protected directory write restrictions.*
+
+### 2. Creating the Inno Setup Windows Installer
+The installer script packages the PyInstaller output directory into a single `PhotoBridgeSetup.exe` file.
+Compile it locally using the Inno Setup Compiler (`iscc`):
 ```cmd
-netsh advfirewall firewall add rule name="PhotoBridge Port 8000" dir=in action=allow protocol=TCP localport=8000 profile=private
+"C:\Program Files (x86)\Inno Setup 6\iscc.exe" installer\PhotoBridge.iss
 ```
+This installer automatically configures the Windows Defender Firewall inbound rule for Port 8000 and registers an uninstaller under Windows Add/Remove Programs.
 
 ---
 
-## 🚀 Running via Command Line
+## 🔒 Windows Firewall & UAC Automation
+
+### 1. Auto-Managed (Recommended)
+Click **`1. Configure Firewall Rule`** inside the Control Center GUI. It uses the native Windows `ShellExecuteW` API with the `"runas"` verb to launch PowerShell elevated in the background. The UAC prompt appears cleanly without terminal console wraps.
+
+### 2. Manual Command Line
+If you prefer to configure the inbound rule manually:
+* **PowerShell (Elevated Admin)**:
+  ```powershell
+  New-NetFirewallRule -DisplayName "PhotoBridge Port 8000" -Direction Inbound -LocalPort 8000 -Protocol TCP -Action Allow -Profile Private
+  ```
+* **Command Prompt (Elevated Admin CMD)**:
+  ```cmd
+  netsh advfirewall firewall add rule name="PhotoBridge Port 8000" dir=in action=allow protocol=TCP localport=8000 profile=private
+  ```
+
+---
+
+## 🚀 Running via Command Line (Dev Mode)
 
 ### Standard Start:
 ```bash
@@ -51,7 +77,6 @@ python backend/run.py
 ```
 
 ### Specifying a Custom Port:
-To override the default port `8000`:
 * **Windows Command Prompt (CMD)**:
   ```cmd
   set PORT=9000
@@ -86,18 +111,16 @@ curl -X POST -H "X-PhotoBridge-PIN: 1234" http://localhost:8000/api/rescan
 
 # 5. Fetch Resized Image Thumbnail (300px width limit)
 curl -H "X-PhotoBridge-PIN: 1234" http://localhost:8000/api/thumb/YOUR_MEDIA_ID?w=300 > thumb.jpg
-
-# 6. Stream Original Video Binary (with HTTP Range Seeking)
-curl -r 0-999 -H "X-PhotoBridge-PIN: 1234" http://localhost:8000/api/full/YOUR_VIDEO_ID > partial.mp4
 ```
 
 ---
 
 ## ⚙️ Low-Level Module Architecture
 
-* **`desktop_gui/gui_app.py`**: Tkinter UI wrapper. Monitors processes, wraps PowerShell calls with hidden window flags (`Start-Process -WindowStyle Hidden`), and handles window state events (`<Configure>`) to size text layout containers.
-* **`backend/app/scanner.py`**: Handles directory walks. It parses EXIF tags using Pillow's `_getexif()` to query timestamp fields `36867` (DateTimeOriginal) and `306` (DateTime). If those fields are missing, it falls back to filesystem `mtime` records.
-* **`backend/app/media.py`**: Stream responses. Sets up chunked generators for serving standard media files and supports custom header range streaming (returning standard `206 Partial Content` with `Content-Range` bounds).
+* **`desktop_gui/gui_app.py`**: Tkinter UI wrapper. Tracks liveness of the in-process server thread when frozen and routes subprocess streams (STDOUT/STDERR) directly to `app.log` in development mode.
+* **`backend/run.py`**: Launches `UvicornServerThread` in-process. Passes `log_config=None` in frozen mode to prevent Uvicorn console logger initialization failures when standard IO streams are detached (`sys.stdout = None` in windowed mode).
+* **`backend/app/paths.py`**: Central path resolution manager. Directs static assets to `sys._MEIPASS` when frozen and resolves user directories (configurations, logs, caches) to `%LOCALAPPDATA%\PhotoBridge`.
+* **`backend/app/main.py`**: FastAPI controller. Implements standard synchronous `def` endpoints to offload slow disk operations (like recursive filesystem directory walking) to FastAPI's background thread pool, keeping the main asyncio event loop responsive.
 
 ---
 
@@ -106,11 +129,10 @@ curl -r 0-999 -H "X-PhotoBridge-PIN: 1234" http://localhost:8000/api/full/YOUR_V
 ### `pillow-heif` Installation Failures
 On some Windows configurations, compiling `pillow-heif` fails if the Microsoft C++ Build Tools are missing.
 * **Solution**: Ensure your pip is upgraded (`python -m pip install --upgrade pip`) to fetch the precompiled binary wheels. Alternatively, download the pre-built `.whl` files from PyPI.
-* **PWA Fallback**: If HEIC thumbnail generation fails, Mobile Safari on iOS can still render HEIC files natively inside the fullscreen slider. Only grid thumbnails will display placeholder card graphics.
 
 ### Port Conflicts
 If you receive a `[WinError 10048] Only one usage of each socket address is normally permitted` error:
-* **Solution**: A previous uvicorn thread did not close cleanly or another application is listening on Port `8000`. Run the following command in cmd to locate the process and terminate it:
+* **Solution**: An orphaned `PhotoBridge.exe` background thread did not close cleanly or another application is listening on Port `8000`. Run the following command in cmd to locate the process and terminate it:
   ```cmd
   netstat -ano | findstr :8000
   taskkill /F /PID <PID_NUMBER>

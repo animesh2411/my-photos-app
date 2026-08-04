@@ -352,3 +352,22 @@ so the phone can reach it over LAN.
 - [ ] **Albums Grid Redesign**: Albums tab displays as a full-screen card grid with cover photos and counts, and tapping one displays its photos with a back navigation button.
 - [ ] **Viewer Controls**: Controls are circular SVG button icons with tap scale animations and an animated iOS red favorite heart.
 - [ ] **LAN Security Protection**: Settings modification and folder browser calls are rejected with 403 Forbidden on remote devices, and unauthorized devices are presented with a glassmorphic PIN lock screen before receiving media.
+
+## 12. Standalone Packaging & CI/CD Release Requirements
+
+1. **Zero-Dependency Portability**:
+   - The application must package into a standalone binary distribution (`PhotoBridge.exe`) that runs on Windows machines without any pre-installed Python interpreter or pip dependencies.
+2. **Local AppData Directory Compliance**:
+   - To align with Windows user privilege models, all write operations (creating/modifying `config.json`, writing logs to `app.log`, and building the `.thumbcache/` folder) must resolve under `%LOCALAPPDATA%\PhotoBridge` rather than the application's program directory. This bypasses admin permission failures when installed under `C:\Program Files`.
+3. **Elevated Inbound Firewall Rules**:
+   - The application setup must register a Windows Defender inbound TCP firewall exception for Port 8000 on the `Private` profile to allow incoming phone connection traffic.
+   - The desktop GUI's manual "Configure Firewall" button must run using the Win32 `ShellExecuteW` API with the `"runas"` verb to elevate PowerShell invisibly without quote-escaping or terminal window shell-wrapper issues.
+4. **Standalone Setup Installer**:
+   - Code must build into a single `PhotoBridgeSetup.exe` installer utilizing Inno Setup. The installer must manage shortcut registration, Add/Remove program registry entries, and automate firewall rule creations during setup and rule cleanups during uninstallation.
+5. **Automated CI/CD Release Pipeline**:
+   - The repository must feature a GitHub Actions workflow (`.github/workflows/release.yml`) running on `windows-latest`.
+   - Every push to the `master` branch must automatically checkout full history, calculate the next patch version tag (e.g. `v0.1.1` -> `v0.1.2`), tag the commit, push the tag to origin, build the Inno Setup installer, and publish a public GitHub Release with the executable attached.
+6. **FastAPI Event-Loop Responsiveness**:
+   - Heavy synchronous IO operations (such as recursive directory scans) must run in synchronous `def` routes to utilize FastAPI's background thread pool, preventing event loop blocking and request timeouts on large photo directories.
+7. **Console-less Server Execution**:
+   - When frozen, the backend server must run as an in-process daemon thread (`UvicornServerThread`) with `log_config=None` to prevent logger crashes on startup in console-less environments.
