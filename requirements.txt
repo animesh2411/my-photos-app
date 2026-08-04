@@ -4,4 +4,7 @@ pillow
 pillow-heif
 python-multipart
 pyinstaller
+pytest
+pytest-cov
+httpx
 
