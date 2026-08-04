@@ -3,8 +3,8 @@
 This guide is intended for developers, contributors, and power users who want to modify PhotoBridge, run API tests, configure manual firewall profiles, build standalone executables, or troubleshoot low-level backend configurations.
 
 For high-level system details, see:
-* 🗺️ **[System Architecture Diagram & Flow charts](file:///f:/CodeX/PyCharmProjects/my-photos-app/local-md-files/ARCHITECTURE.md)**
-* 🤝 **[Contributing Guidelines & Coding Standards](file:///f:/CodeX/PyCharmProjects/my-photos-app/local-md-files/CONTRIBUTING.md)**
+* 🗺️ **[System Architecture Diagram & Flow charts](ARCHITECTURE.md)**
+* 🤝 **[Contributing Guidelines & Coding Standards](CONTRIBUTING.md)**
 
 ---
 

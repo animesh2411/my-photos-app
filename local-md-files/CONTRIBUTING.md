@@ -9,7 +9,7 @@ This project is owned and maintained by [@animesh2411](https://github.com/animes
 ## 🛠️ Code of Conduct & Ownership
 
 * **Repository Owner**: [@animesh2411](https://github.com/animesh2411)
-* **Code Owners**: Please refer to the [.github/CODEOWNERS](file:///f:/CodeX/PyCharmProjects/my-photos-app/.github/CODEOWNERS) file. All Pull Requests and code modifications require approval from the owner.
+* **Code Owners**: Please refer to the [.github/CODEOWNERS](../.github/CODEOWNERS) file. All Pull Requests and code modifications require approval from the owner.
 
 ---
 
@@ -42,7 +42,7 @@ To maintain the project's performance and design consistency, please adhere to t
 - **No JS Frameworks**: Do not introduce React, Vue, or other heavy frameworks. Keep the codebase lightweight using vanilla JavaScript.
 - **Glassmorphism Aesthetic**: Follow Apple's iOS Photos dark mode styling (dark background, translucent headers/modals with `backdrop-filter`, and clean circular button controls).
 - **Responsive Layout**: Ensure all views are optimized for mobile touch interaction (specifically Mobile Safari on iPhone).
-- **PWA Integrity**: Maintain service worker caching rules. If you modify static assets, increment `CACHE_NAME` in [sw.js](file:///f:/CodeX/PyCharmProjects/my-photos-app/static/sw.js) to force client cache eviction.
+- **PWA Integrity**: Maintain service worker caching rules. If you modify static assets, increment `CACHE_NAME` in [sw.js](../frontend/sw.js) to force client cache eviction.
 
 ---
 

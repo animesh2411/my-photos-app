@@ -7,9 +7,9 @@ PhotoBridge is a local web application that runs on a Windows laptop and lets an
 ## 📚 Documentation & Technical Guides
 
 If you are a developer, want to contribute, or need advanced configurations, refer to these guides:
-* 🛠️ **[Developer Guide](file:///f:/CodeX/PyCharmProjects/my-photos-app/local-md-files/developer_guide.md)**: Includes manual installation details, CLI execution ports, `curl` API endpoints tests, and manual firewall commands.
-* 🗺️ **[System Architecture](file:///f:/CodeX/PyCharmProjects/my-photos-app/local-md-files/ARCHITECTURE.md)**: Module breakdowns, backend-frontend details, security designs, and Mermaid data flows.
-* 🤝 **[Contributing Guidelines](file:///f:/CodeX/PyCharmProjects/my-photos-app/local-md-files/CONTRIBUTING.md)**: Project ownership rules, coding standard guides, and PR checklists.
+* 🛠️ **[Developer Guide](local-md-files/developer_guide.md)**: Includes manual installation details, CLI execution ports, `curl` API endpoints tests, and manual firewall commands.
+* 🗺️ **[System Architecture](local-md-files/ARCHITECTURE.md)**: Module breakdowns, backend-frontend details, security designs, and Mermaid data flows.
+* 🤝 **[Contributing Guidelines](local-md-files/CONTRIBUTING.md)**: Project ownership rules, coding standard guides, and PR checklists.
 
 ---
 
@@ -73,13 +73,13 @@ Below is the complete list of developer guides, system architectures, and comple
 
 | Document | Description |
 |---|---|
-| 🗺️ **[System Architecture](file:///f:/CodeX/PyCharmProjects/my-photos-app/local-md-files/ARCHITECTURE.md)** | Module breakdown, static file mapping, data structures, and Mermaid diagrams |
-| 🛠️ **[Developer Guide](file:///f:/CodeX/PyCharmProjects/my-photos-app/local-md-files/developer_guide.md)** | Executable compilation manual, manual firewall commands, and troubleshooting |
-| 📋 **[Release Notes](file:///f:/CodeX/PyCharmProjects/my-photos-app/RELEASE_NOTES.md)** | Full history of released versions, new features, and bug fixes |
-| 🤝 **[Contributing Guidelines](file:///f:/CodeX/PyCharmProjects/my-photos-app/local-md-files/CONTRIBUTING.md)** | Coding style standards and PR submission rules |
-| 📝 **[Implementation Summary](file:///f:/CodeX/PyCharmProjects/my-photos-app/local-md-files/IMPLEMENTATION.md)** | Code maps, completed tasks check-off list, and extension instructions |
-| 📊 **[Completion Report](file:///f:/CodeX/PyCharmProjects/my-photos-app/local-md-files/COMPLETION_REPORT.md)** | Final validation states, testing logs, and performance metrics |
-| 📌 **[Requirements Specification](file:///f:/CodeX/PyCharmProjects/my-photos-app/local-md-files/requirement.md)** | Functional and technical system design goals |
+| 🗺️ **[System Architecture](local-md-files/ARCHITECTURE.md)** | Module breakdown, static file mapping, data structures, and Mermaid diagrams |
+| 🛠️ **[Developer Guide](local-md-files/developer_guide.md)** | Executable compilation manual, manual firewall commands, and troubleshooting |
+| 📋 **[Release Notes](RELEASE_NOTES.md)** | Full history of released versions, new features, and bug fixes |
+| 🤝 **[Contributing Guidelines](local-md-files/CONTRIBUTING.md)** | Coding style standards and PR submission rules |
+| 📝 **[Implementation Summary](local-md-files/IMPLEMENTATION.md)** | Code maps, completed tasks check-off list, and extension instructions |
+| 📊 **[Completion Report](local-md-files/COMPLETION_REPORT.md)** | Final validation states, testing logs, and performance metrics |
+| 📌 **[Requirements Specification](local-md-files/requirement.md)** | Functional and technical system design goals |
 
 ---
 
