@@ -136,13 +136,6 @@ function getLazyImageObserver() {
 // ============================================================================
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // Register service worker
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js').catch(() => {
-            console.log('Service worker registration failed (expected in development)');
-        });
-    }
-
     // Initialize the app state
     await initializeApp();
     
@@ -173,6 +166,13 @@ async function initializeApp() {
     }
 
     state.configured = config.configured;
+
+    // Register service worker with dynamic version query param to force cache refresh
+    if ('serviceWorker' in navigator && config.version) {
+        navigator.serviceWorker.register(`/sw.js?v=${config.version}`).catch(() => {
+            console.log('Service worker registration failed (expected in development)');
+        });
+    }
 
     if (state.configured) {
         if (config.pin_required && !localStorage.getItem('pb_pin')) {
@@ -1068,6 +1068,28 @@ function updateViewer() {
         img.alt = media.filename;
         content.appendChild(img);
 
+        // Lazy load the full resolution original image to allow high-quality long-press saving
+        img.onload = () => {
+            img.onload = null;
+            
+            const isHEIC = media.filename.toLowerCase().endsWith('.heic') || media.filename.toLowerCase().endsWith('.heif');
+            const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) || /iPad|iPhone|iPod/.test(navigator.userAgent);
+            
+            if (isHEIC && !isSafari) {
+                // Keep preview image for HEIC on unsupported browsers to avoid broken image rendering
+                return;
+            }
+            
+            const fullImage = new Image();
+            fullImage.onload = () => {
+                const currentMedia = state.viewedMedia[state.currentViewerIndex];
+                if (currentMedia && currentMedia.id === media.id) {
+                    img.src = fullImage.src;
+                }
+            };
+            fullImage.src = `/api/full/${media.id}${pinParam}`;
+        };
+
         // If this image is a Live Photo, set up the badge and play preview
         if (media.live_video_id) {
             // Add Live Photo badge
@@ -1183,6 +1205,8 @@ function toggleSlideshow() {
 
 async function saveToPhotos() {
     const media = state.viewedMedia[state.currentViewerIndex];
+    const pin = localStorage.getItem('pb_pin') || '';
+    const pinParam = pin ? `?pin=${pin}` : '';
     try {
         showToast('Preparing download...');
         
@@ -1229,7 +1253,9 @@ async function saveToPhotos() {
         }
 
         if (!shared) {
-            // Fallback: download files individually
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            
+            // Trigger standard downloads
             triggerDownload(blobImg, media.filename);
 
             if (isLivePhoto && filesToShare[1]) {
@@ -1237,9 +1263,12 @@ async function saveToPhotos() {
                 setTimeout(() => {
                     triggerDownload(filesToShare[1], filesToShare[1].name);
                 }, 500);
-                showToast('Downloaded still and video clip. Long-press to save.');
+            }
+
+            if (isIOS) {
+                showToast("Tip: Tap 'View', then long-press the image to save to Photos.");
             } else {
-                showToast('File downloaded. Long-press to save if it didn\'t download.');
+                showToast(isLivePhoto ? 'Downloaded still and video clip.' : 'Download complete.');
             }
         } else {
             showToast(isLivePhoto ? 'Live Photo shared successfully!' : 'File shared successfully!');

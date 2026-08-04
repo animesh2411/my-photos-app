@@ -4,7 +4,18 @@ This document tracks all version releases of PhotoBridge, highlighting new featu
 
 ---
 
-## [v1.0.2] — 2026-08-05 (Current Release)
+## [v1.0.3] — 2026-08-05 (Current Release)
+
+### 🚀 Versioning & Mobile Enhancements
+- **Unified Version Management**: Consolidated version numbers into a single root `VERSION` file. Created `local-batch-files/sync_version.py` (which runs automatically during PyInstaller builds) to propagate versions to `pyproject.toml` and Inno Setup `PhotoBridge.iss`.
+- **Dynamic Service Worker Cache-Busting**: Configured `sw.js` and `app.js` to dynamically parse and register the service worker using a version query parameter (`/sw.js?v=1.0.3`), forcing immediate cache flushes on the client side whenever a new version is built.
+- **iOS Safari Download Guidance**: Configured the fullscreen download action to trigger Safari's native download prompt while showing a helpful toast instruction: *"Tip: Tap 'View', then long-press the image to save to Photos."* This bypasses confusing Files app storage defaults.
+- **Lazy Preload of High-Resolution Assets**: Automatically preloads the original image in the background of the fullscreen viewer and swaps it inline (zero-flicker), ensuring long-presses save full-resolution photos.
+- **HEIC Browser Compatibility**: Restricts original HEIC file swapping to Safari/iOS browsers that support it natively, maintaining high-res JPEG previews on other browsers (Chrome, Brave, Firefox) to prevent broken image renders.
+
+---
+
+## [v1.0.2] — 2026-08-05
 
 ### 🚀 CI/CD & Documentation Improvements
 - **Branch-Based CD Strategy**: Decoupled continuous integration from continuous deployment. Commits on `master` now run CI test builds, while creating/pushing a release branch matching `release/v*` (e.g. `release/v1.0.2`) automatically tags the commit and publishes the public GitHub Release.

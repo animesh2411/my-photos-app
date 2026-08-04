@@ -55,3 +55,15 @@ def project_root() -> str:
         return os.path.dirname(sys.executable)
     else:
         return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+def get_app_version() -> str:
+    """Read the version number from the bundled VERSION file."""
+    try:
+        v_path = resource_path("VERSION")
+        if os.path.exists(v_path):
+            with open(v_path, "r", encoding="utf-8") as f:
+                return f.read().strip()
+    except Exception:
+        pass
+    return "1.0.2"

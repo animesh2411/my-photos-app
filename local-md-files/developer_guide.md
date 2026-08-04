@@ -51,6 +51,21 @@ This installer automatically configures the Windows Defender Firewall inbound ru
 
 ---
 
+## 🔄 Unified Version & Cache Management
+
+The application features a fully automated versioning system designed to keep the backend, installer, and service worker cache-busting logic in sync:
+
+1. **VERSION File**: The root `VERSION` file is the single source of truth containing the current version (e.g. `1.0.3`).
+2. **Version Synchronization Script**: Running `pyinstaller PhotoBridge.spec` triggers `local-batch-files/sync_version.py` before building. This automatically updates:
+   * The version in `pyproject.toml` (`version = "..."`).
+   * The version in Inno Setup compiler script `installer/PhotoBridge.iss` (`#define MyAppVersion "..."`).
+3. **Dynamic Cache-Busting Service Worker**:
+   * The backend FastAPI server loads the version dynamically at runtime from the bundled `VERSION` resource and exposes it via `/api/config`.
+   * The frontend `app.js` reads this version and registers the service worker as `/sw.js?v=<version>`.
+   * The service worker `sw.js` parses this query string and updates `CACHE_NAME` dynamically to force the browser to invalidate stale cached assets immediately upon version bump.
+
+---
+
 ## 🔒 Windows Firewall & UAC Automation
 
 ### 1. Auto-Managed (Recommended)

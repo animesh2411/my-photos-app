@@ -9,6 +9,14 @@ Output:      dist/PhotoBridge/PhotoBridge.exe
 """
 
 import os
+import sys
+import subprocess
+
+# Auto-sync version configuration before building
+spec_dir = os.path.dirname(os.path.abspath(SPEC))
+sync_script = os.path.join(spec_dir, "local-batch-files", "sync_version.py")
+if os.path.exists(sync_script):
+    subprocess.run([sys.executable, sync_script], check=True)
 
 block_cipher = None
 
@@ -24,6 +32,8 @@ a = Analysis(
         # Backend Python modules (bundled as data so app.* imports work)
         ('backend/app', 'app'),
         ('backend/run.py', '.'),
+        # Version configuration
+        ('VERSION', '.'),
     ],
     hiddenimports=[
         # Uvicorn internals that are imported dynamically

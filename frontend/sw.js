@@ -3,7 +3,8 @@
  * Caches static app-shell files only; does NOT cache API responses
  */
 
-const CACHE_NAME = 'photobridge-v28';
+const version = new URL(self.location).searchParams.get('v') || '1.0.2';
+const CACHE_NAME = 'photobridge-' + version;
 const STATIC_ASSETS = [
     '/',
     '/index.html',

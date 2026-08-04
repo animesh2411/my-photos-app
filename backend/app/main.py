@@ -17,6 +17,7 @@ from tkinter import filedialog
 from app.config import get_config, set_photos_dir, get_port_from_env
 from app.scanner import MediaIndex, decode_id
 from app.media import generate_thumbnail, get_range_response
+from app.paths import resource_path, get_app_version
 
 
 import time
@@ -63,6 +64,7 @@ class ConfigResponse(BaseModel):
     port: int
     configured: bool
     pin_required: bool
+    version: str
 
 
 # ============================================================================
@@ -117,7 +119,8 @@ def api_get_config():
         photos_dir=config["photos_dir"],
         port=config["port"],
         configured=config["configured"],
-        pin_required=config["pin_required"]
+        pin_required=config["pin_required"],
+        version=get_app_version()
     )
 
 
@@ -140,7 +143,8 @@ def api_set_config(request: ConfigRequest, req: Request):
             photos_dir=config["photos_dir"],
             port=config["port"],
             configured=config["configured"],
-            pin_required=config["pin_required"]
+            pin_required=config["pin_required"],
+            version=get_app_version()
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
