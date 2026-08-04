@@ -229,10 +229,17 @@ class PhotoBridgeGUI:
         self.firewall_active = self.check_firewall()
 
         # Detect externally-killed server (e.g. taskkill or crash)
-        if self.server_running and self.server_process and self.server_process.poll() is not None:
-            self.server_process = None
-            self.server_running = False
-            self.on_server_stopped()
+        if self.server_running:
+            if getattr(sys, "frozen", False):
+                if hasattr(self, 'server_thread') and self.server_thread and not self.server_thread.is_alive():
+                    self.server_thread = None
+                    self.server_running = False
+                    self.on_server_stopped()
+            else:
+                if self.server_process and self.server_process.poll() is not None:
+                    self.server_process = None
+                    self.server_running = False
+                    self.on_server_stopped()
 
         # Update Firewall Status GUI
         if self.firewall_active:
@@ -470,8 +477,8 @@ class PhotoBridgeGUI:
                         )
                         
                         # Start stdout/stderr drain threads to prevent OS buffer locks
-                        threading.Thread(target=self.drain_stream, args=(self.server_process.stdout,), daemon=True).start()
-                        threading.Thread(target=self.drain_stream, args=(self.server_process.stderr,), daemon=True).start()
+                        threading.Thread(target=self.drain_stream, args=(self.server_process.stdout, "STDOUT"), daemon=True).start()
+                        threading.Thread(target=self.drain_stream, args=(self.server_process.stderr, "STDERR"), daemon=True).start()
                         
                         # Give it 1.5 seconds to initialize
                         time.sleep(1.5)
@@ -492,13 +499,17 @@ class PhotoBridgeGUI:
             
             threading.Thread(target=start, daemon=True).start()
 
-    def drain_stream(self, stream):
-        """Continuously reads from stream to keep buffers clear."""
+    def drain_stream(self, stream, prefix: str):
+        """Continuously reads from stream to keep buffers clear and logs output."""
         try:
+            from app.logger import log_event
             while True:
                 line = stream.readline()
                 if not line:
                     break
+                line = line.strip()
+                if line:
+                    log_event("INFO" if prefix == "STDOUT" else "ERROR", f"[{prefix}] {line}")
         except Exception:
             pass
 

@@ -110,7 +110,7 @@ def verify_access_pin(x_photobridge_pin: str = Header(None), pin: str = None):
 # ============================================================================
 
 @app.get("/api/config", response_model=ConfigResponse)
-async def api_get_config():
+def api_get_config():
     """Get the current configuration (photos_dir and port)."""
     config = get_config()
     return ConfigResponse(
@@ -122,7 +122,7 @@ async def api_get_config():
 
 
 @app.post("/api/config", response_model=ConfigResponse)
-async def api_set_config(request: ConfigRequest, req: Request):
+def api_set_config(request: ConfigRequest, req: Request):
     """
     Set the photos directory and optional access PIN.
     Validates that the path exists, saves to config.json, and rescans.
@@ -200,13 +200,13 @@ def api_clear_logs(dependencies=Depends(verify_access_pin)):
 # ============================================================================
 
 @app.get("/api/albums")
-async def api_get_albums(dependencies=Depends(verify_access_pin)):
+def api_get_albums(dependencies=Depends(verify_access_pin)):
     """Get the list of albums (top-level subfolders) with their file counts."""
     return media_index.get_albums()
 
 
 @app.get("/api/media")
-async def api_get_media(
+def api_get_media(
     album: str = None,
     offset: int = 0,
     limit: int = 100,
@@ -223,7 +223,7 @@ async def api_get_media(
 
 
 @app.post("/api/rescan")
-async def api_rescan(album: str = None, dependencies=Depends(verify_access_pin)):
+def api_rescan(album: str = None, dependencies=Depends(verify_access_pin)):
     """
     Rescan the photos directory.
     - If ?album=<name>, clears cache for that album only (fast).
