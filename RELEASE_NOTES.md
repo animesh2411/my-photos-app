@@ -4,7 +4,26 @@ This document tracks all version releases of PhotoBridge, highlighting new featu
 
 ---
 
-## [v1.0.0] — 2026-08-05 (Current Release)
+## [v1.0.2] — 2026-08-05 (Current Release)
+
+### 🚀 CI/CD & Documentation Improvements
+- **Branch-Based CD Strategy**: Decoupled continuous integration from continuous deployment. Commits on `master` now run CI test builds, while creating/pushing a release branch matching `release/v*` (e.g. `release/v1.0.2`) automatically tags the commit and publishes the public GitHub Release.
+- **Relative Path Link Refactoring**: Replaced all local `file:///` absolute paths in `README.md` and developers guides with relative repository paths so clicking documents opens them seamlessly in both local editors and on GitHub.
+- **Removed Duplicate Guides List**: Cleaned up the landing screen in `README.md` by removing the duplicate top links section.
+- **Created TESTING.md Guide**: Added `local-md-files/TESTING.md` to detail test runners, code coverage reports, and testing instructions.
+
+---
+
+## [v1.0.1] — 2026-08-05
+
+### 🧪 Testing & Code Quality
+- **Backend Unit Testing Suite**: Developed a comprehensive Python testing suite (66 test cases in the `tests/` folder) using `pytest` and `pytest-cov`, achieving **90% code coverage** for the backend FastAPI application, media processing, configurations, and scanner algorithms.
+- **Test Runner automation**: Added `local-batch-files/run_tests.bat` to easily run all test cases and check code coverage locally with a single click.
+- **Test Asset Reorganization**: Relocated the untracked root-level test photo to the isolated `tests/resources/` directory.
+
+---
+
+## [v1.0.0] — 2026-08-05
 
 ### 🚀 New Features & Enhancements
 - **mDNS Hostname Resolution (`.local` URL)**: Expose system hostname as an easy-to-remember, case-insensitive `.local` address (e.g., `http://<your-device-name>.local:8000`) on both the desktop GUI dashboard and the server console. This allows mobile devices to connect and bookmark a single persistent address that remains valid even when your router changes the laptop's IP address.
