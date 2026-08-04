@@ -43,6 +43,16 @@ class PhotoBridgeGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("PhotoBridge Control Center")
+        
+        # Set window icon
+        try:
+            from app.paths import resource_path
+            icon_path = resource_path(os.path.join("desktop_gui", "icon.ico"))
+            if os.path.exists(icon_path):
+                self.root.iconbitmap(icon_path)
+        except Exception:
+            pass
+
         self.root.geometry("480x620")
         self.root.configure(bg=BG_COLOR)
         self.root.resizable(True, True)
