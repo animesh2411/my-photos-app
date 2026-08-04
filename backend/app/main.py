@@ -3,7 +3,7 @@ FastAPI backend for PhotoBridge.
 Serves the photo grid API and static frontend files.
 """
 
-from fastapi import FastAPI, HTTPException, Header, Depends
+from fastapi import FastAPI, HTTPException, Header, Depends, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel
