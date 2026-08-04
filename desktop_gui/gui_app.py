@@ -341,23 +341,34 @@ class PhotoBridgeGUI:
         self.btn_change_dir.configure(state="normal", text="Change...")
         messagebox.showerror("Error", f"Failed to update folder:\n{error_msg}")
 
+    def run_elevated_powershell(self, ps_command: str) -> bool:
+        """Runs a PowerShell command elevated (RunAs) using ShellExecuteW."""
+        import ctypes
+        params = f"-NoProfile -NonInteractive -WindowStyle Hidden -Command \"{ps_command}\""
+        try:
+            ret = ctypes.windll.shell32.ShellExecuteW(
+                None,
+                "runas",
+                "powershell.exe",
+                params,
+                None,
+                0  # SW_HIDE
+            )
+            return ret > 32
+        except Exception:
+            return False
+
     def run_setup(self):
         """Execute elevated setup powershell command in background (window hidden)."""
         def run():
             ps_cmd = (
-                "if (-not (Get-NetFirewallRule -DisplayName ''PhotoBridge Port 8000'' -ErrorAction SilentlyContinue)) { "
-                "New-NetFirewallRule -DisplayName ''PhotoBridge Port 8000'' -Direction Inbound -LocalPort 8000 -Protocol TCP -Action Allow -Profile Private "
+                "if (-not (Get-NetFirewallRule -DisplayName 'PhotoBridge Port 8000' -ErrorAction SilentlyContinue)) { "
+                "New-NetFirewallRule -DisplayName 'PhotoBridge Port 8000' -Direction Inbound -LocalPort 8000 -Protocol TCP -Action Allow -Profile Private "
                 "}"
             )
-            cmd = [
-                "powershell",
-                "-Command",
-                f"Start-Process powershell -ArgumentList '-NoProfile -WindowStyle Hidden -Command \"{ps_cmd}\"' -Verb RunAs -Wait"
-            ]
-            try:
-                subprocess.run(cmd, check=True)
-            except Exception as e:
-                messagebox.showerror("Error", f"Failed to configure firewall: {e}")
+            success = self.run_elevated_powershell(ps_cmd)
+            if not success:
+                messagebox.showerror("Error", "Failed to configure firewall: Permission denied or execution failed.")
         
         threading.Thread(target=run, daemon=True).start()
 
@@ -371,19 +382,13 @@ class PhotoBridgeGUI:
 
         def run():
             ps_cmd = (
-                "if (Get-NetFirewallRule -DisplayName ''PhotoBridge Port 8000'' -ErrorAction SilentlyContinue) { "
-                "Remove-NetFirewallRule -DisplayName ''PhotoBridge Port 8000'' "
+                "if (Get-NetFirewallRule -DisplayName 'PhotoBridge Port 8000' -ErrorAction SilentlyContinue) { "
+                "Remove-NetFirewallRule -DisplayName 'PhotoBridge Port 8000' "
                 "}"
             )
-            cmd = [
-                "powershell",
-                "-Command",
-                f"Start-Process powershell -ArgumentList '-NoProfile -WindowStyle Hidden -Command \"{ps_cmd}\"' -Verb RunAs -Wait"
-            ]
-            try:
-                subprocess.run(cmd, check=True)
-            except Exception as e:
-                messagebox.showerror("Error", f"Failed to remove firewall: {e}")
+            success = self.run_elevated_powershell(ps_cmd)
+            if not success:
+                messagebox.showerror("Error", "Failed to remove firewall: Permission denied or execution failed.")
         
         threading.Thread(target=run, daemon=True).start()
 

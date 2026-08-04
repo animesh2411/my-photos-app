@@ -32,7 +32,8 @@ class UvicornServerThread(threading.Thread):
             host=host,
             port=port,
             reload=False,
-            log_level="warning"
+            log_level="warning",
+            log_config=None if getattr(sys, "frozen", False) else "uvicorn.config.LOGGING_CONFIG"
         )
         self.server = uvicorn.Server(self.config)
         self.error = None
