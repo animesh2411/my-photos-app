@@ -5,7 +5,7 @@
 ; Requires:    Inno Setup 6+ (https://jrsoftware.org/isinfo.php)
 
 #define MyAppName "PhotoBridge"
-#define MyAppVersion "0.1.0"
+#define MyAppVersion "1.0.0"
 #define MyAppPublisher "PhotoBridge"
 #define MyAppURL "https://github.com/animesh2411/my-photos-app"
 #define MyAppExeName "PhotoBridge.exe"

@@ -4,22 +4,25 @@ This document tracks all version releases of PhotoBridge, highlighting new featu
 
 ---
 
-## [v0.1.3] — 2026-08-05 (Current Release)
+## [v1.0.0] — 2026-08-05 (Current Release)
 
 ### 🚀 New Features & Enhancements
 - **mDNS Hostname Resolution (`.local` URL)**: Expose system hostname as an easy-to-remember, case-insensitive `.local` address (e.g., `http://<your-device-name>.local:8000`) on both the desktop GUI dashboard and the server console. This allows mobile devices to connect and bookmark a single persistent address that remains valid even when your router changes the laptop's IP address.
 - **Upgraded GUI Layout**: Increased the default window dimensions of the Control Center dashboard to `520x680` (minimum size locked to `480x600`) to neatly display all three server access URLs (Local, Wi-Fi IP, and Hostname) without text clipping or layout wrapping.
+- **Launcher Relocation**: Moved the `run_control_center.bat` launcher into the `local-batch-files/` directory, resolving path execution dependencies relative to the project root.
+- **Root Release Notes**: Introduced root-level release notes tracking for public repository visibility.
 
 ---
 
-## [v0.1.2] — 2026-08-05
+## [v0.1.3] — 2026-08-05
 
-### 🐛 Bug Fixes
+### 🐛 Bug Fixes & Automation
 - **Import Crash Hotfix**: Fixed a `NameError: name 'Request' is not defined` crash on server startup in compiled/frozen environments by moving the FastAPI `Request` import to the very top of `backend/app/main.py`.
+- **Release Automation**: Integrated GitHub Actions CI/CD workflow to auto-compile, auto-tag, and publish installer executable assets automatically.
 
 ---
 
-## [v0.1.1] — 2026-08-04
+## [v0.1.2] — 2026-08-04
 
 ### 📦 Standalone Packaging & Portability
 - **PyInstaller Executable Compilation**: Added `PhotoBridge.spec` to package the Python runtime, Tkinter GUI, FastAPI server, and web frontend assets into a standalone `PhotoBridge.exe` distribution requiring no pre-installed Python interpreter or runtime environments on end-user PCs.
@@ -30,7 +33,13 @@ This document tracks all version releases of PhotoBridge, highlighting new featu
 ### 🛡️ Windows Firewall & UAC Automation
 - **Win32 ShellExecuteW Integration**: Refactored the control center's manual firewall exceptions setup to use the native Win32 `ShellExecuteW` API utilizing the `"runas"` verb. This triggers the standard Windows UAC prompt directly, avoiding nested PowerShell escaping errors and console flashes.
 - **Inno Setup Installer (`PhotoBridgeSetup.exe`)**: Built `installer/PhotoBridge.iss` to package the PyInstaller output into a single, user-friendly setup file. Automatically registers inbound TCP Port 8000 exceptions on Private Wi-Fi profiles during installation, and cleans up rules on uninstallation.
-- **Automated CI/CD Release Pipeline**: Added `.github/workflows/release.yml` running on `windows-latest` to build, version-tag (e.g. `v*`), and publish new releases automatically on pushes to `master`.
+
+---
+
+## [v0.1.1] — 2026-08-02
+
+### ⚙️ Minor Adjustments
+- Initial packaging configurations and environment parameters setup.
 
 ---
 
