@@ -4,15 +4,6 @@ PhotoBridge is a local web application that runs on a Windows laptop and lets an
 
 ---
 
-## 📚 Documentation & Technical Guides
-
-If you are a developer, want to contribute, or need advanced configurations, refer to these guides:
-* 🛠️ **[Developer Guide](local-md-files/developer_guide.md)**: Includes manual installation details, CLI execution ports, `curl` API endpoints tests, and manual firewall commands.
-* 🗺️ **[System Architecture](local-md-files/ARCHITECTURE.md)**: Module breakdowns, backend-frontend details, security designs, and Mermaid data flows.
-* 🤝 **[Contributing Guidelines](local-md-files/CONTRIBUTING.md)**: Project ownership rules, coding standard guides, and PR checklists.
-
----
-
 ## 🚀 How to Start (Quick Run)
 
 1. **Download** or clone this project folder to your Windows laptop.
@@ -77,6 +68,7 @@ Below is the complete list of developer guides, system architectures, and comple
 | 🛠️ **[Developer Guide](local-md-files/developer_guide.md)** | Executable compilation manual, manual firewall commands, and troubleshooting |
 | 📋 **[Release Notes](RELEASE_NOTES.md)** | Full history of released versions, new features, and bug fixes |
 | 🤝 **[Contributing Guidelines](local-md-files/CONTRIBUTING.md)** | Coding style standards and PR submission rules |
+| 🧪 **[Testing Guide](local-md-files/TESTING.md)** | Unit test structures, coverage reporting, and test runner configurations |
 | 📝 **[Implementation Summary](local-md-files/IMPLEMENTATION.md)** | Code maps, completed tasks check-off list, and extension instructions |
 | 📊 **[Completion Report](local-md-files/COMPLETION_REPORT.md)** | Final validation states, testing logs, and performance metrics |
 | 📌 **[Requirements Specification](local-md-files/requirement.md)** | Functional and technical system design goals |
