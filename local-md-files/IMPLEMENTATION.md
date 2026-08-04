@@ -18,8 +18,9 @@ PhotoBridge is fully implemented, packaged, and automated for deployment. Here's
 - ✅ **Automated Firewall Rules**: Configures the installer to run PowerShell commands during installation to create an inbound TCP rule for Port 8000 on Private profiles, and cleans up the rules upon uninstallation.
 - ✅ **Add/Remove Programs & Desktop Shortcuts**: Registers PhotoBridge properly in Windows Settings and adds desktop and start-menu shortcuts.
 
-### 3. Windows UAC Elevation Wrapper
+### 3. Windows UAC Elevation & UI Upgrades
 - ✅ **Win32 ShellExecuteW Integration** — Refactored the firewall installation script inside `gui_app.py` to use the native Win32 `ShellExecuteW` API utilizing the `"runas"` verb. This triggers the standard Windows UAC dialog natively on `powershell.exe` without quote-escaping issues or terminal window flashes.
+- ✅ **mDNS Hostname Integration & UI Dimensions** — Configured `gui_app.py` and `run.py` to query the system hostname via `socket.gethostname()` and display an easy-to-remember `.local` address (e.g. `http://<hostname>.local:8000`) for persistent phone bookmarking. Increased the default window dimensions in `gui_app.py` to `520x680` (minimum size `480x600`) to render all three connection URLs properly.
 
 ### 4. FastAPI Event Loop Performance Fixes
 - ✅ **Thread Pool Routing** — Converted recursive file-scanning and image-decoding endpoints in `main.py` (`api_get_config`, `api_set_config`, `api_get_albums`, `api_get_media`, `api_rescan`) from `async def` to regular synchronous `def`. FastAPI automatically routes these CPU-heavy synchronous calls to a background thread pool, preventing event loop blocking and request timeouts on large photo directories (e.g. external drives).
@@ -63,10 +64,13 @@ my-photos-app/
 │   └── icon.ico              (Custom Windows application icon)
 ├── installer/
 │   └── PhotoBridge.iss       (Inno Setup compiler script)
+├── local-batch-files/
+│   ├── run_control_center.bat (Development batch launcher)
+│   └── run_app.bat           (CLI server launcher)
 ├── PhotoBridge.spec          (PyInstaller specs file)
-├── run_control_center.bat    (Development batch launcher)
 ├── requirements.txt          (Merged python packages)
 ├── README.md                (User instructions & USPs documentation)
+├── RELEASE_NOTES.md         (Release notes tracking)
 └── local-md-files/           (Developer guides & documentation)
 ```
 

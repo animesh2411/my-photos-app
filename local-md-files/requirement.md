@@ -66,8 +66,9 @@ photobridge/
       icon-512.png
   config.json              # created on first run once a folder is chosen; not committed to git
   requirements.txt
-  run_control_center.bat  # double-clickable launcher for the GUI control center (root)
-  local-batch-files/       # CLI launchers and setup batch files
+  RELEASE_NOTES.md         # release notes tracking (root)
+  local-batch-files/       # CLI and GUI launchers
+    run_control_center.bat # double-clickable launcher for the GUI control center
     run_app.bat           # double-clickable CLI server launcher
     setup.bat             # admin UAC firewall rule installation launcher
     uninstall.bat         # admin UAC firewall rule cleanup launcher
@@ -288,7 +289,7 @@ so the phone can reach it over LAN.
 
 1. Prerequisites: Python 3.11+ installed on Windows.
 2. `pip install -r requirements.txt`.
-3. How to run: Double-click `run_control_center.bat` to launch the native desktop Control Center (runs without background console popups, supports one-time firewall setup, checks status, and starts/stops the server invisibly). Day-to-day console execution can also be started with `local-batch-files/run_app.bat` or `python run.py`.
+3. How to run: Double-click `local-batch-files/run_control_center.bat` to launch the native desktop Control Center (runs without background console popups, supports one-time firewall setup, checks status, and starts/stops the server invisibly). Day-to-day console execution can also be started with `local-batch-files/run_app.bat` or `python run.py`.
 4. Dynamic LAN IP detection and startup banner instructions.
 5. How to open it on iPhone Safari, complete the one-time setup screen by entering the full path to an existing folder on the laptop (e.g. `C:\Users\you\Pictures`), configuring an optional Access PIN, and "Add to Home Screen".
 6. How to change the folder or security PIN later via the gear icon settings modal in the app.
@@ -370,4 +371,8 @@ so the phone can reach it over LAN.
 6. **FastAPI Event-Loop Responsiveness**:
    - Heavy synchronous IO operations (such as recursive directory scans) must run in synchronous `def` routes to utilize FastAPI's background thread pool, preventing event loop blocking and request timeouts on large photo directories.
 7. **Console-less Server Execution**:
-   - When frozen, the backend server must run as an in-process daemon thread (`UvicornServerThread`) with `log_config=None` to prevent logger crashes on startup in console-less environments.
+   - When frozen, the backend server must run as an in-process daemon thread (`UvicornServerThread`) with `log_config=None` to prevent logger crashes on startup in console-less environments.
+8. **mDNS Hostname Resolution**:
+   - The system must retrieve the local hostname (via `socket.gethostname()`) and expose the case-insensitive `.local` bookmark address (e.g. `http://<hostname>.local:8000`) on both the console output and the GUI status card, ensuring persistent bookmarks.
+9. **Desktop UI Window Sizing**:
+   - The default window geometry of the desktop GUI must be set to `520x680` (minimum size `480x600`) to provide adequate vertical layout space for the server status block and connection URLs.

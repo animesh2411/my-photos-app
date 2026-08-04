@@ -1,12 +1,12 @@
 @echo off
 title PhotoBridge Control Center
-cd /d "%~dp0"
+cd /d "%~dp0.."
 
 :: Check if Python is installed
 python --version >nul 2>&1
 if %errorlevel% neq 0 (
     echo [ERROR] Python is not installed or not added to system PATH.
-    echo Please install Python 3.11 or later.
+    echo Please install Python 3.12 or later.
     pause
     exit /b 1
 )
@@ -23,7 +23,7 @@ if not exist ".venv" (
 )
 
 :: Create/update desktop shortcut with custom icon
-powershell -Command "$WshShell = New-Object -ComObject WScript.Shell; $Shortcut = $WshShell.CreateShortcut('%USERPROFILE%\Desktop\PhotoBridge.lnk'); $Shortcut.TargetPath = '%~dp0run_control_center.bat'; $Shortcut.WorkingDirectory = '%~dp0'; $Shortcut.IconLocation = '%~dp0desktop_gui\icon.ico'; $Shortcut.Save()" >nul 2>&1
+powershell -Command "$WshShell = New-Object -ComObject WScript.Shell; $Shortcut = $WshShell.CreateShortcut('%USERPROFILE%\Desktop\PhotoBridge.lnk'); $Shortcut.TargetPath = '%~dp0run_control_center.bat'; $Shortcut.WorkingDirectory = '%~dp0..'; $Shortcut.IconLocation = '%~dp0..\desktop_gui\icon.ico'; $Shortcut.Save()" >nul 2>&1
 
 :: Run the GUI control center without spawning a console window
 start "" pythonw desktop_gui\gui_app.py

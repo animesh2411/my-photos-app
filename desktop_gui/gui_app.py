@@ -53,10 +53,10 @@ class PhotoBridgeGUI:
         except Exception:
             pass
 
-        self.root.geometry("480x620")
+        self.root.geometry("520x680")
         self.root.configure(bg=BG_COLOR)
         self.root.resizable(True, True)
-        self.root.minsize(440, 560)
+        self.root.minsize(480, 600)
         
         # Center the window on screen
         self.center_window()
@@ -540,8 +540,13 @@ class PhotoBridgeGUI:
         from app.config import get_port_from_env
         port = get_port_from_env()
 
+        try:
+            hostname = socket.gethostname().lower()
+        except Exception:
+            hostname = "photobridge"
+
         self.url_label.configure(
-            text=f"Local:   http://localhost:{port}\nPhone:  http://{lan_ip}:{port}   (same Wi-Fi)",
+            text=f"Local:   http://localhost:{port}\nPhone:  http://{lan_ip}:{port}   (same Wi-Fi)\nEasy:    http://{hostname}.local:{port}",
             fg=TEXT_COLOR
         )
         # Lock uninstall button when server runs

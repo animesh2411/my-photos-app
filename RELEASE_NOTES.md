@@ -1,0 +1,45 @@
+# PhotoBridge Release Notes
+
+This document tracks all version releases of PhotoBridge, highlighting new features, enhancements, and bug fixes for each build.
+
+---
+
+## [v0.1.3] — 2026-08-05 (Current Release)
+
+### 🚀 New Features & Enhancements
+- **mDNS Hostname Resolution (`.local` URL)**: Expose system hostname as an easy-to-remember, case-insensitive `.local` address (e.g., `http://<your-device-name>.local:8000`) on both the desktop GUI dashboard and the server console. This allows mobile devices to connect and bookmark a single persistent address that remains valid even when your router changes the laptop's IP address.
+- **Upgraded GUI Layout**: Increased the default window dimensions of the Control Center dashboard to `520x680` (minimum size locked to `480x600`) to neatly display all three server access URLs (Local, Wi-Fi IP, and Hostname) without text clipping or layout wrapping.
+
+---
+
+## [v0.1.2] — 2026-08-05
+
+### 🐛 Bug Fixes
+- **Import Crash Hotfix**: Fixed a `NameError: name 'Request' is not defined` crash on server startup in compiled/frozen environments by moving the FastAPI `Request` import to the very top of `backend/app/main.py`.
+
+---
+
+## [v0.1.1] — 2026-08-04
+
+### 📦 Standalone Packaging & Portability
+- **PyInstaller Executable Compilation**: Added `PhotoBridge.spec` to package the Python runtime, Tkinter GUI, FastAPI server, and web frontend assets into a standalone `PhotoBridge.exe` distribution requiring no pre-installed Python interpreter or runtime environments on end-user PCs.
+- **Relocated Data Directories**: Implemented write-safe path resolution via `backend/app/paths.py`. Stores configurations (`config.json`), logs (`app.log`), and caches (`.thumbcache/`) under `%LOCALAPPDATA%\PhotoBridge` to conform to Windows user privilege models and bypass folder write access failures under `Program Files`.
+- **Zero-Subprocess Server Thread**: Configured Uvicorn to run as an in-process thread daemon (`UvicornServerThread`) when frozen, passing `log_config=None` to prevent logger initialization crashes in windowed, console-less environments.
+- **FastAPI Event-Loop Concurrency**: Converted recursive file-scanning, EXIF parsing, and media listing endpoints from `async def` to regular synchronous `def` routes, permitting FastAPI to route these CPU/disk-heavy processes to a background worker pool and keep the main asyncio event loop responsive.
+
+### 🛡️ Windows Firewall & UAC Automation
+- **Win32 ShellExecuteW Integration**: Refactored the control center's manual firewall exceptions setup to use the native Win32 `ShellExecuteW` API utilizing the `"runas"` verb. This triggers the standard Windows UAC prompt directly, avoiding nested PowerShell escaping errors and console flashes.
+- **Inno Setup Installer (`PhotoBridgeSetup.exe`)**: Built `installer/PhotoBridge.iss` to package the PyInstaller output into a single, user-friendly setup file. Automatically registers inbound TCP Port 8000 exceptions on Private Wi-Fi profiles during installation, and cleans up rules on uninstallation.
+- **Automated CI/CD Release Pipeline**: Added `.github/workflows/release.yml` running on `windows-latest` to build, version-tag (e.g. `v*`), and publish new releases automatically on pushes to `master`.
+
+---
+
+## [v0.1.0] — 2026-07-06
+
+### ✨ Initial Release
+- **Tkinter GUI Control Center**: Initial native Windows Control Center GUI to check server status, open firewall ports, view logs, and launch windowless servers.
+- **Responsive PWA Grid Layout**: Apple Photos styled dark-themed progressive web application with date-grouped photo/video lists, iOS Photos-style glassmorphic video tiles, and swipe/arrow navigation.
+- **EXIF Extraction**: Directory scanner crawling photos and extracting capture dates using Pillow EXIF tags, with automatic file mtime fallbacks.
+- **Video Scrubbing**: FastAPI HTTP range-seeking response streaming allowing videos to play and scrub in Safari.
+- **Strict Privacy Headers**: Appended `Cache-Control: private, no-store, must-revalidate` to all media streams, preventing mobile devices from cache-writing photos to device storage.
+- **Favorites & Search**: LocalStorage persistent favorites and live filename search filtering.

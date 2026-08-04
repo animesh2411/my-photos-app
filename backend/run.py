@@ -78,12 +78,19 @@ if __name__ == "__main__":
         else f"{config['photos_dir']}"
     )
 
-    print("\n" + "=" * 70)
+    import socket
+    try:
+        hostname = socket.gethostname().lower()
+    except Exception:
+        hostname = "photobridge"
+
+    print("\n" + "=" * 75)
     print("PhotoBridge running!")
     print(f"Local:  http://localhost:{port}")
     print(f"Phone:  http://{lan_ip}:{port}   (same WiFi)")
+    print(f"Easy:   http://{hostname}.local:{port}  (mDNS/Bonjour)")
     print(f"Photos folder: {photos_folder_status}")
-    print("=" * 70 + "\n")
+    print("=" * 75 + "\n")
 
     print(">>> TO STOP THE SERVER: Press [ENTER] key in this window at any time. <<<\n")
     

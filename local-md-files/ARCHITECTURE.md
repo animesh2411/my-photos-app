@@ -50,7 +50,7 @@ graph TD
 
 ### 1. Backend Modules (Python / FastAPI)
 
-* **`run.py`**: Spawns the Uvicorn web server. When running as a frozen executable, Uvicorn runs in-process as a background daemon thread (`UvicornServerThread`) with `log_config=None` to prevent crash-on-startup issues caused by console-less environments.
+* **`run.py`**: Spawns the Uvicorn web server. When running as a frozen executable, Uvicorn runs in-process as a background daemon thread (`UvicornServerThread`) with `log_config=None` to prevent crash-on-startup issues caused by console-less environments. Also queries the system's hostname to print a persistent host-based `.local` connection address.
 * **`app/paths.py`**: Central path manager. Routes asset searches to `sys._MEIPASS` when frozen and relocates configurations, logs, and caches to `%LOCALAPPDATA%\PhotoBridge` to conform to Windows filesystem write privileges.
 * **`app/main.py`**: FastAPI controller. Implements synchronous `def` endpoints to offload slow disk operations (such as recursive directory walking) to FastAPI's background thread pool, preventing main asyncio event loop blockages.
 * **`app/logger.py`**: Process-safe, file-backed logger writing to `%LOCALAPPDATA%\PhotoBridge\app.log`. Logs API endpoints, timings, client IPs, and critical exceptions.
@@ -61,6 +61,7 @@ graph TD
 ### 2. Windows Desktop Control Center & Launchers
 * **`desktop_gui/gui_app.py`**: A native Tkinter desktop Control Center:
   * **In-Process Monitor**: Spawns the server as a background thread and monitors thread liveness. If the thread crashes, it changes status indicators immediately to "Stopped".
+  * **mDNS Connection Display**: Resolves system hostname using Python's `socket` library to show the easy-to-remember `.local` bookmark address alongside the numeric IP.
   * **UAC Firewall Automation**: Employs the Win32 `ShellExecuteW` API with the `"runas"` verb to run administrative PowerShell firewall scripts invisibly, safely handling path and quote escaping.
   * **Live Log Viewer Window**: Displays real-time logs fetched directly from the relocated `app.log` file.
 * **`PhotoBridge.spec`**: Configures the PyInstaller compile steps, bundling assets, icon configurations, metadata exclusions, and windowless execution binaries.

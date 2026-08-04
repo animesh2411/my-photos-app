@@ -16,19 +16,20 @@ If you are a developer, want to contribute, or need advanced configurations, ref
 ## 🚀 How to Start (Quick Run)
 
 1. **Download** or clone this project folder to your Windows laptop.
-2. **Double-click `run_control_center.bat`** in the project folder. This will automatically create a safe virtual environment and install all packages.
+2. **Double-click `run_control_center.bat`** in the `local-batch-files/` folder. This will automatically create a safe virtual environment and install all packages.
 3. In the PhotoBridge window:
    * Click **`1. Configure Firewall Rule`** (One-Time Setup). Click **Yes** on the Windows UAC security prompt that appears. This automatically secures your Wi-Fi port for phone access.
    * Click **`2. Start PhotoBridge Server`**.
 4. The dashboard will instantly display the Wi-Fi connection addresses for your phone:
-   * Example: `Phone: http://192.168.1.8:8000`
+   * **Numeric IP**: `Phone: http://192.168.1.8:8000`
+   * **Easy Hostname**: `Easy: http://mylaptop.local:8000` (Bookmark this! It uses mDNS so it stays valid even if your numeric IP changes).
 
 ---
 
 ## 📱 First-Time Setup (From Your iPhone)
 
 1. **Connect your iPhone to the same Wi-Fi network** as your laptop.
-2. Open **Safari** on your phone and go to the address shown in the desktop dashboard (e.g. `http://192.168.1.8:8000`).
+2. Open **Safari** on your phone and go to the easy hostname address shown in the desktop dashboard (e.g. `http://mylaptop.local:8000`).
 3. **Complete the setup wizard**:
    * Enter the path to the folder on your laptop you want to browse (e.g. `C:\Users\YourName\Pictures`).
    * (Optional) Set an **Access PIN** to protect your photos from other devices on the same network.
@@ -41,6 +42,7 @@ If you are a developer, want to contribute, or need advanced configurations, ref
 ## ✨ Features
 
 * **📦 Standalone Packaging & Zero-Dependency Portability (No Python Needed!)**: Can be compiled into a standalone directory distribution (`PhotoBridge.exe`) and packaged into a one-click Windows installer (`PhotoBridgeSetup.exe`). End users do not need Python or any development libraries installed to run the application.
+* **🌐 mDNS Hostname Resolution (`.local` URL)**: Exposes a persistent host-based address (e.g. `http://<your-device-name>.local:8000`) for easy bookmarking, keeping connections active when the laptop's numeric IP changes.
 * **🛡️ Elevated Inbound Firewalling (Auto-Managed)**: The installer and Control Center automatically manage Windows Firewall exceptions for Port 8000 on private Wi-Fi profiles, handling setup and clean removal on uninstall.
 * **📂 User Data Relocation (Write-Safe)**: Stores configuration (`config.json`), log files (`app.log`), and thumbnail caches under `%LOCALAPPDATA%\PhotoBridge` instead of the project folder, complying with Windows security policies and bypassing permission issues in `Program Files`.
 * **🚀 Automated GitHub Actions Releases**: Fully configured CI/CD pipeline (`.github/workflows/release.yml`) builds the standalone installer automatically on every master push and publishes tagged releases (`v*`) to GitHub.
