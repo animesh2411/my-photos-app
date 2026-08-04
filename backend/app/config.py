@@ -15,10 +15,12 @@ DEFAULT_CONFIG = {
     "access_pin": None
 }
 
+from app.paths import user_data_dir
+
 
 def get_config_path() -> str:
-    """Get the absolute path to config.json."""
-    return os.path.join(os.getcwd(), CONFIG_FILE)
+    """Get the absolute path to config.json in the user data directory."""
+    return os.path.join(user_data_dir(), CONFIG_FILE)
 
 
 def ensure_config_exists():

@@ -7,14 +7,24 @@ import time
 import tkinter as tk
 from tkinter import messagebox, filedialog
 
-# Setup system paths for backend imports
-script_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.dirname(script_dir)
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-backend_path = os.path.join(project_root, "backend")
-if backend_path not in sys.path:
-    sys.path.insert(0, backend_path)
+# Setup system paths for backend imports (works in both dev and frozen mode)
+if getattr(sys, "frozen", False):
+    # PyInstaller frozen mode: bundled files are in sys._MEIPASS
+    _base = sys._MEIPASS
+    backend_path = os.path.join(_base, "backend")
+    if backend_path not in sys.path:
+        sys.path.insert(0, backend_path)
+    if _base not in sys.path:
+        sys.path.insert(0, _base)
+else:
+    # Development mode: navigate from desktop_gui/ to project root
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(script_dir)
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+    backend_path = os.path.join(project_root, "backend")
+    if backend_path not in sys.path:
+        sys.path.insert(0, backend_path)
 
 # Design Tokens (Harmonious Dark Theme)
 BG_COLOR = "#000000"
@@ -33,6 +43,16 @@ class PhotoBridgeGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("PhotoBridge Control Center")
+        
+        # Set window icon
+        try:
+            from app.paths import resource_path
+            icon_path = resource_path(os.path.join("desktop_gui", "icon.ico"))
+            if os.path.exists(icon_path):
+                self.root.iconbitmap(icon_path)
+        except Exception:
+            pass
+
         self.root.geometry("480x620")
         self.root.configure(bg=BG_COLOR)
         self.root.resizable(True, True)
@@ -219,10 +239,17 @@ class PhotoBridgeGUI:
         self.firewall_active = self.check_firewall()
 
         # Detect externally-killed server (e.g. taskkill or crash)
-        if self.server_running and self.server_process and self.server_process.poll() is not None:
-            self.server_process = None
-            self.server_running = False
-            self.on_server_stopped()
+        if self.server_running:
+            if getattr(sys, "frozen", False):
+                if hasattr(self, 'server_thread') and self.server_thread and not self.server_thread.is_alive():
+                    self.server_thread = None
+                    self.server_running = False
+                    self.on_server_stopped()
+            else:
+                if self.server_process and self.server_process.poll() is not None:
+                    self.server_process = None
+                    self.server_running = False
+                    self.on_server_stopped()
 
         # Update Firewall Status GUI
         if self.firewall_active:
@@ -331,23 +358,34 @@ class PhotoBridgeGUI:
         self.btn_change_dir.configure(state="normal", text="Change...")
         messagebox.showerror("Error", f"Failed to update folder:\n{error_msg}")
 
+    def run_elevated_powershell(self, ps_command: str) -> bool:
+        """Runs a PowerShell command elevated (RunAs) using ShellExecuteW."""
+        import ctypes
+        params = f"-NoProfile -NonInteractive -WindowStyle Hidden -Command \"{ps_command}\""
+        try:
+            ret = ctypes.windll.shell32.ShellExecuteW(
+                None,
+                "runas",
+                "powershell.exe",
+                params,
+                None,
+                0  # SW_HIDE
+            )
+            return ret > 32
+        except Exception:
+            return False
+
     def run_setup(self):
         """Execute elevated setup powershell command in background (window hidden)."""
         def run():
             ps_cmd = (
-                "if (-not (Get-NetFirewallRule -DisplayName ''PhotoBridge Port 8000'' -ErrorAction SilentlyContinue)) { "
-                "New-NetFirewallRule -DisplayName ''PhotoBridge Port 8000'' -Direction Inbound -LocalPort 8000 -Protocol TCP -Action Allow -Profile Private "
+                "if (-not (Get-NetFirewallRule -DisplayName 'PhotoBridge Port 8000' -ErrorAction SilentlyContinue)) { "
+                "New-NetFirewallRule -DisplayName 'PhotoBridge Port 8000' -Direction Inbound -LocalPort 8000 -Protocol TCP -Action Allow -Profile Private "
                 "}"
             )
-            cmd = [
-                "powershell",
-                "-Command",
-                f"Start-Process powershell -ArgumentList '-NoProfile -WindowStyle Hidden -Command \"{ps_cmd}\"' -Verb RunAs -Wait"
-            ]
-            try:
-                subprocess.run(cmd, check=True)
-            except Exception as e:
-                messagebox.showerror("Error", f"Failed to configure firewall: {e}")
+            success = self.run_elevated_powershell(ps_cmd)
+            if not success:
+                messagebox.showerror("Error", "Failed to configure firewall: Permission denied or execution failed.")
         
         threading.Thread(target=run, daemon=True).start()
 
@@ -361,19 +399,13 @@ class PhotoBridgeGUI:
 
         def run():
             ps_cmd = (
-                "if (Get-NetFirewallRule -DisplayName ''PhotoBridge Port 8000'' -ErrorAction SilentlyContinue) { "
-                "Remove-NetFirewallRule -DisplayName ''PhotoBridge Port 8000'' "
+                "if (Get-NetFirewallRule -DisplayName 'PhotoBridge Port 8000' -ErrorAction SilentlyContinue) { "
+                "Remove-NetFirewallRule -DisplayName 'PhotoBridge Port 8000' "
                 "}"
             )
-            cmd = [
-                "powershell",
-                "-Command",
-                f"Start-Process powershell -ArgumentList '-NoProfile -WindowStyle Hidden -Command \"{ps_cmd}\"' -Verb RunAs -Wait"
-            ]
-            try:
-                subprocess.run(cmd, check=True)
-            except Exception as e:
-                messagebox.showerror("Error", f"Failed to remove firewall: {e}")
+            success = self.run_elevated_powershell(ps_cmd)
+            if not success:
+                messagebox.showerror("Error", "Failed to remove firewall: Permission denied or execution failed.")
         
         threading.Thread(target=run, daemon=True).start()
 
@@ -386,8 +418,13 @@ class PhotoBridgeGUI:
             
             def stop():
                 try:
-                    if self.server_process:
-                        # Send \n to run.py's stdin to stop uvicorn cleanly
+                    if hasattr(self, 'server_thread') and self.server_thread:
+                        # Frozen mode: stop in-process uvicorn thread
+                        self.server_thread.stop()
+                        self.server_thread.join(timeout=5.0)
+                        self.server_thread = None
+                    elif self.server_process:
+                        # Dev mode: send \n to run.py's stdin to stop uvicorn cleanly
                         self.server_process.communicate(input="\n", timeout=4)
                 except Exception:
                     if self.server_process:
@@ -413,39 +450,58 @@ class PhotoBridgeGUI:
             
             def start():
                 try:
-                    python_exe = os.path.join(".venv", "Scripts", "python.exe")
-                    if not os.path.exists(python_exe):
-                        python_exe = "python"
+                    if getattr(sys, "frozen", False):
+                        # Frozen mode: run uvicorn in-process as a thread
+                        from app.config import get_port_from_env
+                        port = get_port_from_env()
+                        from run import UvicornServerThread
+                        self.server_thread = UvicornServerThread("0.0.0.0", port)
+                        self.server_thread.start()
+                        time.sleep(1.5)
                         
-                    creationflags = 0
-                    if sys.platform == "win32":
-                        creationflags = subprocess.CREATE_NO_WINDOW
-
-                    self.server_process = subprocess.Popen(
-                        [python_exe, os.path.join("backend", "run.py")],
-                        stdin=subprocess.PIPE,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                        text=True,
-                        creationflags=creationflags
-                    )
-                    
-                    # Start stdout/stderr drain threads to prevent OS buffer locks
-                    threading.Thread(target=self.drain_stream, args=(self.server_process.stdout,), daemon=True).start()
-                    threading.Thread(target=self.drain_stream, args=(self.server_process.stderr,), daemon=True).start()
-                    
-                    # Give it 1.5 seconds to initialize
-                    time.sleep(1.5)
-                    
-                    if self.server_process.poll() is not None:
-                        # Process exited due to startup error
-                        self.server_running = False
-                        self.server_process = None
-                        self.root.after(0, lambda: messagebox.showerror("Startup Error", "Server failed to start. Please wait a few seconds for port 8000 to clear, or check if another app is using port 8000."))
-                        self.root.after(0, self.on_server_stopped)
+                        if self.server_thread.error:
+                            self.server_running = False
+                            self.server_thread = None
+                            self.root.after(0, lambda: messagebox.showerror("Startup Error", "Server failed to start. Please wait a few seconds for port 8000 to clear, or check if another app is using port 8000."))
+                            self.root.after(0, self.on_server_stopped)
+                        else:
+                            self.server_running = True
+                            self.root.after(0, self.on_server_started)
                     else:
-                        self.server_running = True
-                        self.root.after(0, self.on_server_started)
+                        # Dev mode: spawn backend/run.py as subprocess
+                        python_exe = os.path.join(".venv", "Scripts", "python.exe")
+                        if not os.path.exists(python_exe):
+                            python_exe = "python"
+                            
+                        creationflags = 0
+                        if sys.platform == "win32":
+                            creationflags = subprocess.CREATE_NO_WINDOW
+
+                        self.server_process = subprocess.Popen(
+                            [python_exe, os.path.join("backend", "run.py")],
+                            stdin=subprocess.PIPE,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            text=True,
+                            creationflags=creationflags
+                        )
+                        
+                        # Start stdout/stderr drain threads to prevent OS buffer locks
+                        threading.Thread(target=self.drain_stream, args=(self.server_process.stdout, "STDOUT"), daemon=True).start()
+                        threading.Thread(target=self.drain_stream, args=(self.server_process.stderr, "STDERR"), daemon=True).start()
+                        
+                        # Give it 1.5 seconds to initialize
+                        time.sleep(1.5)
+                        
+                        if self.server_process.poll() is not None:
+                            # Process exited due to startup error
+                            self.server_running = False
+                            self.server_process = None
+                            self.root.after(0, lambda: messagebox.showerror("Startup Error", "Server failed to start. Please wait a few seconds for port 8000 to clear, or check if another app is using port 8000."))
+                            self.root.after(0, self.on_server_stopped)
+                        else:
+                            self.server_running = True
+                            self.root.after(0, self.on_server_started)
                 except Exception as e:
                     self.server_running = False
                     self.root.after(0, lambda: messagebox.showerror("Error", f"Failed to start server: {e}"))
@@ -453,13 +509,17 @@ class PhotoBridgeGUI:
             
             threading.Thread(target=start, daemon=True).start()
 
-    def drain_stream(self, stream):
-        """Continuously reads from stream to keep buffers clear."""
+    def drain_stream(self, stream, prefix: str):
+        """Continuously reads from stream to keep buffers clear and logs output."""
         try:
+            from app.logger import log_event
             while True:
                 line = stream.readline()
                 if not line:
                     break
+                line = line.strip()
+                if line:
+                    log_event("INFO" if prefix == "STDOUT" else "ERROR", f"[{prefix}] {line}")
         except Exception:
             pass
 
@@ -596,7 +656,11 @@ class PhotoBridgeGUI:
         """Clean closure of application, terminating background server tasks & deleting .thumbcache."""
         if self.server_running:
             try:
-                if self.server_process:
+                if hasattr(self, 'server_thread') and self.server_thread:
+                    # Frozen mode: stop in-process uvicorn thread
+                    self.server_thread.stop()
+                    self.server_thread.join(timeout=3.0)
+                elif self.server_process:
                     self.server_process.communicate(input="\n", timeout=2)
             except Exception:
                 if self.server_process:
@@ -611,10 +675,14 @@ class PhotoBridgeGUI:
         self.root.destroy()
 
 if __name__ == "__main__":
-    # Ensure working directory is the project directory
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.dirname(script_dir)
-    os.chdir(project_root)
+    if getattr(sys, "frozen", False):
+        # Frozen mode: working directory is beside the .exe
+        os.chdir(os.path.dirname(sys.executable))
+    else:
+        # Dev mode: working directory is project root
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(script_dir)
+        os.chdir(project_root)
 
     # Clean leftover thumbnails on launch & register atexit hook
     import atexit
@@ -626,5 +694,5 @@ if __name__ == "__main__":
         pass
 
     root = tk.Tk()
-    app = PhotoBridgeGUI(root)
+    gui = PhotoBridgeGUI(root)
     root.mainloop()

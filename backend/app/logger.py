@@ -6,8 +6,9 @@ Maintains a persistent, process-safe log file (backend/app.log).
 import os
 import time
 from typing import List, Dict
+from app.paths import user_data_dir
 
-LOG_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "app.log")
+LOG_FILE = os.path.join(user_data_dir(), "app.log")
 
 
 def log_event(level: str, message: str):

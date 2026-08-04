@@ -40,11 +40,15 @@ If you are a developer, want to contribute, or need advanced configurations, ref
 
 ## ✨ Features
 
+* **📦 Standalone Packaging & Zero-Dependency Portability (No Python Needed!)**: Can be compiled into a standalone directory distribution (`PhotoBridge.exe`) and packaged into a one-click Windows installer (`PhotoBridgeSetup.exe`). End users do not need Python or any development libraries installed to run the application.
+* **🛡️ Elevated Inbound Firewalling (Auto-Managed)**: The installer and Control Center automatically manage Windows Firewall exceptions for Port 8000 on private Wi-Fi profiles, handling setup and clean removal on uninstall.
+* **📂 User Data Relocation (Write-Safe)**: Stores configuration (`config.json`), log files (`app.log`), and thumbnail caches under `%LOCALAPPDATA%\PhotoBridge` instead of the project folder, complying with Windows security policies and bypassing permission issues in `Program Files`.
+* **🚀 Automated GitHub Actions Releases**: Fully configured CI/CD pipeline (`.github/workflows/release.yml`) builds the standalone installer automatically on every master push and publishes tagged releases (`v*`) to GitHub.
 * **🎛️ Windows Control Center GUI**: Native desktop dashboard to check server status, configure/remove firewall rules, launch windowless servers, and inspect **live real-time server logs** (`📋 View Server Logs`).
 * **📸 Date-Grouped Grid**: Scroll through all photos grouped by capture date with smooth lazy-loading and shimmer placeholders.
 * **📂 Albums Grid & Cover Art**: Browse directory albums with automatic cover art selection (prioritizes image files over video clips) and persistent cover caching.
 * **🎥 Video Badging & Scrubbing**: Video tiles display an iOS Photos style glassmorphism video badge (`▶ VIDEO`). Fullscreen video player supports range scrubbing and instant first-frame preview.
-* **🧵 ThreadPool Offloaded Processing**: Fast AP1 endpoints offload PIL decoding and EXIF reads to background worker threads, preventing event loop blocking.
+* **🧵 ThreadPool Offloaded Processing**: Fast API endpoints offload PIL decoding and EXIF reads to background worker threads, preventing event loop blocking.
 * **🛑 Request Cancellation Controller**: Aborts pending thumbnail downloads when switching tabs or clicking a photo, dedicating 100% pipeline to requested media.
 * **🧹 Automatic Cache Cleanup & Teardown**: `backend/.thumbcache/` is automatically purged on server shutdown/launch to keep laptop hard drives clean.
 * **📱 Strict Mobile Privacy**: Headers set to `Cache-Control: private, no-store, must-revalidate` — phone browsers are strictly forbidden from writing media to phone disk storage.
@@ -55,6 +59,6 @@ If you are a developer, want to contribute, or need advanced configurations, ref
 ---
 
 ## 💻 Requirements
-* **Python 3.11 or later** installed on your Windows laptop.
 * **Windows 10 or 11** computer.
 * **iPhone** running iOS 12 or newer.
+* **Python 3.12 or later** (Only required for running from source code/development; not needed when using the standalone `PhotoBridgeSetup.exe` installer).
