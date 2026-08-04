@@ -367,7 +367,8 @@ so the phone can reach it over LAN.
    - Code must build into a single `PhotoBridgeSetup.exe` installer utilizing Inno Setup. The installer must manage shortcut registration, Add/Remove program registry entries, and automate firewall rule creations during setup and rule cleanups during uninstallation.
 5. **Automated CI/CD Release Pipeline**:
    - The repository must feature a GitHub Actions workflow (`.github/workflows/release.yml`) running on `windows-latest`.
-   - Every push to the `master` branch must automatically checkout full history, calculate the next patch version tag (e.g. `v0.1.1` -> `v0.1.2`), tag the commit, push the tag to origin, build the Inno Setup installer, and publish a public GitHub Release with the executable attached.
+   - **Continuous Integration (CI)**: Pushes to `master` must automatically compile the code and build the installer, uploading it as a workflow artifact for validation. No public release or tag is generated.
+   - **Continuous Deployment (CD)**: Pushing a release branch matching `release/v*` (e.g. `release/v1.0.0`) must trigger a pipeline that extracts the version string from the branch name, tags the commit, pushes the tag back to the repository, builds the installer, and publishes a public GitHub Release with `PhotoBridgeSetup.exe` attached.
 6. **FastAPI Event-Loop Responsiveness**:
    - Heavy synchronous IO operations (such as recursive directory scans) must run in synchronous `def` routes to utilize FastAPI's background thread pool, preventing event loop blocking and request timeouts on large photo directories.
 7. **Console-less Server Execution**:

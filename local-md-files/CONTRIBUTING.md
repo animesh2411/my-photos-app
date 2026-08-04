@@ -52,16 +52,16 @@ Before submitting any code changes, verify your work:
 
 1. **Verify Python Syntax**:
    ```bash
-   python -m py_compile app/main.py app/config.py app/scanner.py app/media.py run.py
+   python -m py_compile backend/app/main.py backend/app/config.py backend/app/scanner.py backend/app/media.py backend/run.py desktop_gui/gui_app.py
    ```
 2. **Run the API Test Suite**:
    ```bash
-   python test_api.py
+   python backend/test_api.py
    ```
 3. **Launch the Server**:
-   Double-click `run_app.bat` or run:
+   Double-click `local-batch-files/run_app.bat` or run:
    ```bash
-   python run.py
+   python backend/run.py
    ```
 4. **Manual UI Checks**:
    Open the app on your mobile Safari browser and verify:
@@ -69,3 +69,29 @@ Before submitting any code changes, verify your work:
    - Live Photo playback (touch-and-hold) and saving.
    - Album folder grid navigation and back options.
    - Settings configurations and localhost connection locks.
+
+---
+
+## 🚀 Release Management & Branching Strategy
+
+We follow a structured branching and release workflow to avoid release pollution and code debt on major branches.
+
+### 1. Continuous Integration (CI) on `master`
+- Daily development is merged into the `master` branch.
+- Every push to `master` triggers the CI workflow, which builds the standalone installer and uploads it as a workflow artifact on GitHub Actions for testing.
+- **No Git tag is pushed and no public GitHub Release is created on master commits.**
+
+### 2. Continuous Deployment (CD) on `release/v*`
+- When the codebase on `master` is stable and ready for a public release:
+  1. Create a release branch named `release/v<version>` from `master` (e.g., `release/v1.0.0`):
+     ```bash
+     git checkout master
+     git pull origin master
+     git checkout -b release/v1.0.0
+     git push origin release/v1.0.0
+     ```
+  2. The push to the `release/v*` branch automatically triggers the CD pipeline:
+     - Extracts the version (e.g. `v1.0.0`) from the branch name.
+     - Compiles the PyInstaller build and packages `PhotoBridgeSetup.exe` via Inno Setup.
+     - Tags the commit with the extracted version and pushes it back to GitHub.
+     - Creates a public GitHub Release for the tag, attaching the installer asset.

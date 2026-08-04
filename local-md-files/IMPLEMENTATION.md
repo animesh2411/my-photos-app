@@ -27,9 +27,8 @@ PhotoBridge is fully implemented, packaged, and automated for deployment. Here's
 
 ### 5. Automated CI/CD (GitHub Actions)
 - ✅ **.github/workflows/release.yml** — Created an automated pipeline running on `windows-latest` runners.
-  - Triggers on every push to `master`.
-  - Automatically fetches all tags and increments the patch version (e.g. `v0.1.0` -> `v0.1.1`).
-  - Compiles code with PyInstaller, runs Inno Setup to create the installer, tags the commit, and publishes a public GitHub Release with `PhotoBridgeSetup.exe` attached.
+  - **Continuous Integration (CI)**: Triggers on pushes to `master` to compile the executable and build the installer as a test workflow artifact.
+  - **Continuous Deployment (CD)**: Triggers on pushes of a release branch (`release/v*`) to extract the version name, create and push the Git tag, compile the installer, and publish a public GitHub Release with `PhotoBridgeSetup.exe` attached.
 - ✅ **Merged Dependencies**: Merged `requirements-build.txt` and `requirements.txt` into a single, unified file.
 
 ---

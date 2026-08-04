@@ -68,7 +68,7 @@ my-photos-app/
 
 ### 🚀 4. Automated CI/CD releases
 - **Full Release Automation**: Built a GitHub Actions workflow `.github/workflows/release.yml` running on `windows-latest`.
-- **Auto-Versioning**: Every commit merged into `master` automatically triggers the build, fetches existing git tags, increments the patch version (e.g. `v0.1.1` -> `v0.1.2`), tags the commit, pushes it to GitHub, and publishes a public Release with `PhotoBridgeSetup.exe` attached.
+- **Auto-Versioning**: Commits merged to `master` trigger the CI workflow to verify builds. Creating and pushing a release branch matching `release/v*` automatically extracts the version, tags the commit, pushes the tag to GitHub, and publishes a public GitHub Release with `PhotoBridgeSetup.exe` attached.
 
 ---
 

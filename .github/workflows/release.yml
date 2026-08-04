@@ -1,18 +1,24 @@
 # Build & Release PhotoBridge
 #
-# Automated Release Strategy:
-# ----------------------------
-# - Every push to master triggers this workflow.
-# - Automatically calculates the next patch version tag based on Git history.
-# - Tags the commit and pushes the tag back to the repository.
-# - Compiles the standalone executable and packages it into PhotoBridgeSetup.exe.
-# - Automatically publishes a public GitHub Release for the new version, attaching the installer.
+# Release Strategy: BRANCH-BASED CD & COMMIT-BASED CI
+# --------------------------------------------------
+# - Every push to master: builds PhotoBridge.exe + PhotoBridgeSetup.exe and
+#   uploads them as workflow artifacts for testing/verification (CI). No release is created.
+# - Push to a release branch (release/v*): builds the installer, auto-tags the
+#   commit with the version string from the branch name, pushes the tag to origin,
+#   and publishes a public GitHub Release with PhotoBridgeSetup.exe attached (CD).
+#
+# To publish a release (e.g., v1.0.0):
+#   git checkout -b release/v1.0.0
+#   git push origin release/v1.0.0
 
 name: Build & Release PhotoBridge
 
 on:
   push:
-    branches: [master]
+    branches:
+      - master
+      - 'release/v*'
 
 jobs:
   build:
@@ -24,7 +30,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Required to fetch all tags and commit history for version calculation
+          fetch-depth: 0  # Required to push tags back to the repository
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -72,43 +78,27 @@ jobs:
             dist/PhotoBridgeSetup.exe
           retention-days: 30
 
-      - name: Auto-generate version tag
+      - name: Extract version from release branch name
+        if: startsWith(github.ref, 'refs/heads/release/v')
         run: |
-          # Fetch all remote tags
-          git fetch --tags
-          
-          # Find the latest tag
-          $latest_tag = git describe --tags --abbrev=0 2>$null
-          if (-not $latest_tag) {
-            $latest_tag = "v0.1.0"
-          }
-          Write-Host "Latest tag: $latest_tag"
-          
-          # Increment the patch version
-          if ($latest_tag -match '^v(\d+)\.(\d+)\.(\d+)') {
-            $major = [int]$Matches[1]
-            $minor = [int]$Matches[2]
-            $patch = [int]$Matches[3] + 1
-            $new_tag = "v$major.$minor.$patch"
-          } else {
-            $new_tag = "v0.1.1"
-          }
-          Write-Host "New tag: $new_tag"
-          
-          # Configure Git
+          $branch = "${{ github.ref_name }}"
+          # Extract everything after 'release/' (e.g. v1.0.0)
+          $version_tag = $branch.SubString($branch.IndexOf("release/") + 8)
+          Write-Host "Extracted version tag: $version_tag"
+          echo "RELEASE_TAG=$version_tag" >> $env:GITHUB_ENV
+
+      - name: Tag commit
+        if: startsWith(github.ref, 'refs/heads/release/v')
+        run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          # Create and push the tag
-          git tag $new_tag
-          git push origin $new_tag
-          
-          # Expose environment variable
-          echo "NEW_TAG=$new_tag" >> $env:GITHUB_ENV
+          git tag ${{ env.RELEASE_TAG }}
+          git push origin ${{ env.RELEASE_TAG }}
 
       - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/heads/release/v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ env.NEW_TAG }}
+          tag_name: ${{ env.RELEASE_TAG }}
           files: dist/PhotoBridgeSetup.exe
           generate_release_notes: true
