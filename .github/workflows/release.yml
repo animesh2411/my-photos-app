@@ -35,11 +35,8 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install runtime dependencies
+      - name: Install dependencies
         run: pip install -r requirements.txt
-
-      - name: Install build dependencies
-        run: pip install -r requirements-build.txt
 
       - name: Build with PyInstaller
         run: pyinstaller PhotoBridge.spec
