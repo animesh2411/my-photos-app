@@ -7,14 +7,24 @@ import time
 import tkinter as tk
 from tkinter import messagebox, filedialog
 
-# Setup system paths for backend imports
-script_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.dirname(script_dir)
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-backend_path = os.path.join(project_root, "backend")
-if backend_path not in sys.path:
-    sys.path.insert(0, backend_path)
+# Setup system paths for backend imports (works in both dev and frozen mode)
+if getattr(sys, "frozen", False):
+    # PyInstaller frozen mode: bundled files are in sys._MEIPASS
+    _base = sys._MEIPASS
+    backend_path = os.path.join(_base, "backend")
+    if backend_path not in sys.path:
+        sys.path.insert(0, backend_path)
+    if _base not in sys.path:
+        sys.path.insert(0, _base)
+else:
+    # Development mode: navigate from desktop_gui/ to project root
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(script_dir)
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+    backend_path = os.path.join(project_root, "backend")
+    if backend_path not in sys.path:
+        sys.path.insert(0, backend_path)
 
 # Design Tokens (Harmonious Dark Theme)
 BG_COLOR = "#000000"
@@ -386,8 +396,13 @@ class PhotoBridgeGUI:
             
             def stop():
                 try:
-                    if self.server_process:
-                        # Send \n to run.py's stdin to stop uvicorn cleanly
+                    if hasattr(self, 'server_thread') and self.server_thread:
+                        # Frozen mode: stop in-process uvicorn thread
+                        self.server_thread.stop()
+                        self.server_thread.join(timeout=5.0)
+                        self.server_thread = None
+                    elif self.server_process:
+                        # Dev mode: send \n to run.py's stdin to stop uvicorn cleanly
                         self.server_process.communicate(input="\n", timeout=4)
                 except Exception:
                     if self.server_process:
@@ -413,39 +428,58 @@ class PhotoBridgeGUI:
             
             def start():
                 try:
-                    python_exe = os.path.join(".venv", "Scripts", "python.exe")
-                    if not os.path.exists(python_exe):
-                        python_exe = "python"
+                    if getattr(sys, "frozen", False):
+                        # Frozen mode: run uvicorn in-process as a thread
+                        from app.config import get_port_from_env
+                        port = get_port_from_env()
+                        from run import UvicornServerThread
+                        self.server_thread = UvicornServerThread("0.0.0.0", port)
+                        self.server_thread.start()
+                        time.sleep(1.5)
                         
-                    creationflags = 0
-                    if sys.platform == "win32":
-                        creationflags = subprocess.CREATE_NO_WINDOW
-
-                    self.server_process = subprocess.Popen(
-                        [python_exe, os.path.join("backend", "run.py")],
-                        stdin=subprocess.PIPE,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                        text=True,
-                        creationflags=creationflags
-                    )
-                    
-                    # Start stdout/stderr drain threads to prevent OS buffer locks
-                    threading.Thread(target=self.drain_stream, args=(self.server_process.stdout,), daemon=True).start()
-                    threading.Thread(target=self.drain_stream, args=(self.server_process.stderr,), daemon=True).start()
-                    
-                    # Give it 1.5 seconds to initialize
-                    time.sleep(1.5)
-                    
-                    if self.server_process.poll() is not None:
-                        # Process exited due to startup error
-                        self.server_running = False
-                        self.server_process = None
-                        self.root.after(0, lambda: messagebox.showerror("Startup Error", "Server failed to start. Please wait a few seconds for port 8000 to clear, or check if another app is using port 8000."))
-                        self.root.after(0, self.on_server_stopped)
+                        if self.server_thread.error:
+                            self.server_running = False
+                            self.server_thread = None
+                            self.root.after(0, lambda: messagebox.showerror("Startup Error", "Server failed to start. Please wait a few seconds for port 8000 to clear, or check if another app is using port 8000."))
+                            self.root.after(0, self.on_server_stopped)
+                        else:
+                            self.server_running = True
+                            self.root.after(0, self.on_server_started)
                     else:
-                        self.server_running = True
-                        self.root.after(0, self.on_server_started)
+                        # Dev mode: spawn backend/run.py as subprocess
+                        python_exe = os.path.join(".venv", "Scripts", "python.exe")
+                        if not os.path.exists(python_exe):
+                            python_exe = "python"
+                            
+                        creationflags = 0
+                        if sys.platform == "win32":
+                            creationflags = subprocess.CREATE_NO_WINDOW
+
+                        self.server_process = subprocess.Popen(
+                            [python_exe, os.path.join("backend", "run.py")],
+                            stdin=subprocess.PIPE,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            text=True,
+                            creationflags=creationflags
+                        )
+                        
+                        # Start stdout/stderr drain threads to prevent OS buffer locks
+                        threading.Thread(target=self.drain_stream, args=(self.server_process.stdout,), daemon=True).start()
+                        threading.Thread(target=self.drain_stream, args=(self.server_process.stderr,), daemon=True).start()
+                        
+                        # Give it 1.5 seconds to initialize
+                        time.sleep(1.5)
+                        
+                        if self.server_process.poll() is not None:
+                            # Process exited due to startup error
+                            self.server_running = False
+                            self.server_process = None
+                            self.root.after(0, lambda: messagebox.showerror("Startup Error", "Server failed to start. Please wait a few seconds for port 8000 to clear, or check if another app is using port 8000."))
+                            self.root.after(0, self.on_server_stopped)
+                        else:
+                            self.server_running = True
+                            self.root.after(0, self.on_server_started)
                 except Exception as e:
                     self.server_running = False
                     self.root.after(0, lambda: messagebox.showerror("Error", f"Failed to start server: {e}"))
@@ -596,7 +630,11 @@ class PhotoBridgeGUI:
         """Clean closure of application, terminating background server tasks & deleting .thumbcache."""
         if self.server_running:
             try:
-                if self.server_process:
+                if hasattr(self, 'server_thread') and self.server_thread:
+                    # Frozen mode: stop in-process uvicorn thread
+                    self.server_thread.stop()
+                    self.server_thread.join(timeout=3.0)
+                elif self.server_process:
                     self.server_process.communicate(input="\n", timeout=2)
             except Exception:
                 if self.server_process:
@@ -611,10 +649,14 @@ class PhotoBridgeGUI:
         self.root.destroy()
 
 if __name__ == "__main__":
-    # Ensure working directory is the project directory
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.dirname(script_dir)
-    os.chdir(project_root)
+    if getattr(sys, "frozen", False):
+        # Frozen mode: working directory is beside the .exe
+        os.chdir(os.path.dirname(sys.executable))
+    else:
+        # Dev mode: working directory is project root
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(script_dir)
+        os.chdir(project_root)
 
     # Clean leftover thumbnails on launch & register atexit hook
     import atexit
@@ -626,5 +668,5 @@ if __name__ == "__main__":
         pass
 
     root = tk.Tk()
-    app = PhotoBridgeGUI(root)
+    gui = PhotoBridgeGUI(root)
     root.mainloop()

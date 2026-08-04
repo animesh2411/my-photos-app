@@ -9,10 +9,21 @@ import threading
 import uvicorn
 import time
 import sys
+import os
+
+# Ensure backend/ is on sys.path so 'app.*' imports work in both
+# development mode (python backend/run.py) and frozen mode (PyInstaller).
+_backend_dir = os.path.dirname(os.path.abspath(__file__))
+if _backend_dir not in sys.path:
+    sys.path.insert(0, _backend_dir)
+
 from app.config import get_port_from_env, get_config
 from app.main import get_lan_ip
 
+
 class UvicornServerThread(threading.Thread):
+    """Runs uvicorn in a daemon thread. Usable both standalone and in-process from gui_app."""
+
     def __init__(self, host: str, port: int):
         super().__init__()
         self.daemon = True
@@ -35,6 +46,7 @@ class UvicornServerThread(threading.Thread):
 
     def stop(self):
         self.server.should_exit = True
+
 
 if __name__ == "__main__":
     import atexit

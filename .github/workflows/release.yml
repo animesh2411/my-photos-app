@@ -1,0 +1,88 @@
+# Build & Release PhotoBridge
+#
+# Versioning Strategy: TAG-BASED RELEASES
+# ----------------------------------------
+# - Every push to master: builds PhotoBridge.exe + PhotoBridgeSetup.exe and
+#   uploads them as workflow artifacts for verification (not a public release).
+# - When a version tag (v*) is pushed: creates a public GitHub Release with
+#   PhotoBridgeSetup.exe as the release asset.
+#
+# To publish a release:
+#   git tag v0.1.0
+#   git push --tags
+#
+# This avoids noisy per-commit releases while still CI-building every push.
+
+name: Build & Release PhotoBridge
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write  # Required for creating GitHub Releases
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install runtime dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install build dependencies
+        run: pip install -r requirements-build.txt
+
+      - name: Build with PyInstaller
+        run: pyinstaller PhotoBridge.spec
+
+      - name: Verify build output
+        run: |
+          if (!(Test-Path "dist\PhotoBridge\PhotoBridge.exe")) {
+            Write-Error "PyInstaller build failed — PhotoBridge.exe not found"
+            exit 1
+          }
+          Write-Host "PhotoBridge.exe built successfully"
+          $size = (Get-Item "dist\PhotoBridge\PhotoBridge.exe").Length / 1MB
+          Write-Host "Size: $([math]::Round($size, 2)) MB"
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+
+      - name: Build installer with Inno Setup
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\iscc.exe" installer\PhotoBridge.iss
+
+      - name: Verify installer output
+        run: |
+          if (!(Test-Path "dist\PhotoBridgeSetup.exe")) {
+            Write-Error "Inno Setup build failed — PhotoBridgeSetup.exe not found"
+            exit 1
+          }
+          Write-Host "PhotoBridgeSetup.exe built successfully"
+          $size = (Get-Item "dist\PhotoBridgeSetup.exe").Length / 1MB
+          Write-Host "Size: $([math]::Round($size, 2)) MB"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: PhotoBridge-Windows
+          path: |
+            dist/PhotoBridgeSetup.exe
+          retention-days: 30
+
+      # Only create a GitHub Release when a version tag is pushed
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/PhotoBridgeSetup.exe
+          generate_release_notes: true

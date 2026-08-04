@@ -22,8 +22,10 @@ try:
 except ImportError:
     pass  # pillow-heif not installed
 
+from app.paths import user_data_dir
+
 # Thumbnail cache directory
-THUMB_CACHE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.thumbcache')
+THUMB_CACHE_DIR = os.path.join(user_data_dir(), '.thumbcache')
 
 
 def _thumb_cache_path(file_path: str, width: int) -> str:

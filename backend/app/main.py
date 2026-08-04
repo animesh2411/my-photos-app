@@ -358,7 +358,8 @@ def api_download_media(media_id: str, range: str = Header(None), dependencies=De
 # ============================================================================
 
 # Mount static files (frontend) at the root, with index.html as the default
-static_dir = os.path.join(os.path.dirname(__file__), "..", "..", "frontend")
+from app.paths import resource_path
+static_dir = resource_path("frontend")
 if os.path.exists(static_dir):
     app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
 
