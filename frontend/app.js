@@ -214,9 +214,9 @@ async function fetchConfig() {
     return res.json();
 }
 
-async function setPhotosDir(path, pin = null) {
+async function setPhotosDir(path) {
     const headers = { 'Content-Type': 'application/json' };
-    const storedPin = pin || localStorage.getItem('pb_pin');
+    const storedPin = localStorage.getItem('pb_pin');
     if (storedPin) {
         headers['X-PhotoBridge-PIN'] = storedPin;
     }
@@ -224,7 +224,7 @@ async function setPhotosDir(path, pin = null) {
     const res = await fetch('/api/config', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ photos_dir: path, access_pin: pin })
+        body: JSON.stringify({ photos_dir: path })
     });
 
     if (!res.ok) {
@@ -407,10 +407,6 @@ function renderSetupScreen() {
             <input type="text" id="pathInput" placeholder="C:\\Users\\yourname\\Pictures">
             <button id="browseBtn" class="secondary-button">Browse Laptop...</button>
         </div>
-        <div style="margin-top: 15px; margin-bottom: 20px; width: 100%; max-width: 320px; text-align: left;">
-            <label style="font-size: 13px; color: #888; display: block; margin-bottom: 5px;">Access PIN (Optional - secures access from other devices)</label>
-            <input type="password" id="setupPinInput" placeholder="Set connection password" style="width: 100%; padding: 12px; background: #1c1c1c; border: 1px solid #333; border-radius: 8px; color: #fff; font-size: 14px; box-sizing: border-box;">
-        </div>
         <button id="connectBtn">Connect</button>
         <div class="error" id="errorMsg"></div>
     `;
@@ -431,16 +427,10 @@ function renderSetupScreen() {
 
     div.querySelector('#connectBtn').addEventListener('click', async () => {
         const path = div.querySelector('#pathInput').value.trim();
-        const pin = div.querySelector('#setupPinInput').value.trim();
         if (!path) return;
 
         try {
-            await setPhotosDir(path, pin);
-            if (pin) {
-                localStorage.setItem('pb_pin', pin);
-            } else {
-                localStorage.removeItem('pb_pin');
-            }
+            await setPhotosDir(path);
             state.configured = true;
             state.loadedAlbums = {};
             await loadAlbums();
@@ -497,7 +487,13 @@ function renderMainApp() {
         <button class="tab-button${state.currentTab === 'albums' ? ' active' : ''}" data-tab="albums">Albums</button>
         <button class="tab-button${state.currentTab === 'favorites' ? ' active' : ''}" data-tab="favorites">Favorites</button>
         <input type="text" id="searchBox" placeholder="Search...">
+        <button id="settingsBtn" title="Settings">⚙️</button>
     `;
+
+    const settingsBtn = topBar.querySelector('#settingsBtn');
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', openSettings);
+    }
 
     // Tab buttons — cancel old requests, re-render active grid
     topBar.querySelectorAll('.tab-button').forEach(btn => {
@@ -1316,11 +1312,6 @@ function openSettings() {
                         <button id="modalBrowseBtn" class="secondary-button">Browse...</button>
                     </div>
                     
-                    <p style="margin-bottom: 8px;">Access PIN (Optional - secures connections from other devices):</p>
-                    <div class="input-group" style="margin-bottom: 16px;">
-                        <input type="password" id="modalPinInput" value="${config.access_pin || ''}" placeholder="Set PIN (leave empty to disable)">
-                    </div>
-                    
                     <div class="error" id="modalErrorMsg"></div>
                 </div>
                 <div class="modal-footer">
@@ -1359,19 +1350,13 @@ function openSettings() {
 
         modal.querySelector('#modalSaveBtn').addEventListener('click', async () => {
             const newPath = modal.querySelector('#modalPathInput').value.trim();
-            const newPin = modal.querySelector('#modalPinInput').value.trim();
             if (!newPath) return;
 
             const errEl = modal.querySelector('#modalErrorMsg');
             errEl.textContent = '';
 
             try {
-                await setPhotosDir(newPath, newPin);
-                if (newPin) {
-                    localStorage.setItem('pb_pin', newPin);
-                } else {
-                    localStorage.removeItem('pb_pin');
-                }
+                await setPhotosDir(newPath);
                 await loadMedia();
                 render();
                 showToast('Settings updated successfully');

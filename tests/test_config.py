@@ -59,12 +59,31 @@ def test_set_access_pin(mock_user_dir):
     set_access_pin("1234")
     config = get_config()
     assert config["pin_required"] is True
-    assert config["access_pin"] == "1234"
+    
+    from app.security import verify_hash, deobfuscate_pin
+    assert verify_hash("1234", config["access_pin"]) is True
+    assert deobfuscate_pin(config["access_pin_local"]) == "1234"
+    
+    # Test auto-migration of legacy plaintext config file
+    config_path = get_config_path()
+    with open(config_path, "r") as f:
+        data = json.load(f)
+    data["access_pin"] = "5678"
+    if "access_pin_local" in data:
+        del data["access_pin_local"]
+    with open(config_path, "w") as f:
+        json.dump(data, f)
+        
+    config = get_config()
+    assert config["pin_required"] is True
+    assert verify_hash("5678", config["access_pin"]) is True
+    assert deobfuscate_pin(config["access_pin_local"]) == "5678"
     
     set_access_pin(None)
     config = get_config()
     assert config["pin_required"] is False
     assert config["access_pin"] is None
+    assert config["access_pin_local"] is None
 
 def test_set_photos_dir_validation(mock_user_dir, tmp_path):
     non_existent = str(tmp_path / "does_not_exist")

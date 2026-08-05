@@ -31,6 +31,12 @@ PhotoBridge is fully implemented, packaged, and automated for deployment. Here's
   - **Continuous Deployment (CD)**: Triggers on pushes of a release branch (`release/v*`) to extract the version name, create and push the Git tag, compile the installer, and publish a public GitHub Release with `PhotoBridgeSetup.exe` attached.
 - ✅ **Merged Dependencies**: Merged `requirements-build.txt` and `requirements.txt` into a single, unified file.
 
+### 6. Salted Access PIN Hashing & Rate Limiting
+- ✅ **PBKDF2 SHA-256 Hashing** — Swapped mobile Access PIN storage from plaintext to a salted cryptographic hash.
+- ✅ **XOR Local Obfuscation & Eye Toggle** — Configured the desktop GUI to save the PIN locally via a XOR cipher (`access_pin_local`), allowing the Control Center to unmask it on eye toggle click.
+- ✅ **Client-IP Sliding Window Lockout** — Added a thread-safe `PinRateLimiter` blocking remote connections for 60 seconds after 5 consecutive incorrect PIN entries.
+- ✅ **GUI-Isolated Administration** — Stripped PIN configuration from web/PWA clients, restricting security updates to the local laptop Control Center GUI.
+
 ---
 
 ## 📂 Repository Structure Overview
@@ -47,7 +53,8 @@ my-photos-app/
 │   │   ├── scanner.py        (EXIF reader & directory walking)
 │   │   ├── paths.py          (Relocated AppData paths manager)
 │   │   ├── main.py           (FastAPI router with def endpoints)
-│   │   └── media.py          (HEIC decoder & range seeks)
+│   │   ├── media.py          (HEIC decoder & range seeks)
+│   │   └── security.py       (PBKDF2 hashing, XOR local cipher, rate limiter)
 │   ├── run.py                (Server entry point & thread daemon)
 │   ├── test_api.py           (API verification script)
 │   └── diagnose.py           (Diagnostics utility)

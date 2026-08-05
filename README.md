@@ -1,6 +1,6 @@
-# PhotoBridge — Local Network Photo Browser for iPhone
+# PhotoBridge — Cross-Platform Local Network Photo Browser
 
-PhotoBridge is a local web application that runs on a Windows laptop and lets an iPhone on the same Wi-Fi network browse the laptop's photo/video folders in an interface styled like Apple Photos. It's a Progressive Web App (PWA) with no cloud accounts or complex setup needed.
+PhotoBridge is a lightweight, local web application that runs on a Windows host laptop and allows any device (iPhones, Android phones, iPads, tablets, smart TVs, or other laptops) on the same Wi-Fi network to browse and stream the host's photo/video folders. It is built as a highly responsive Progressive Web App (PWA) featuring an Apple Photos-style interface, requiring no cloud accounts, external internet connection, or complex setup.
 
 ---
 
@@ -17,21 +17,22 @@ PhotoBridge is a local web application that runs on a Windows laptop and lets an
 
 ---
 
-## 📱 First-Time Setup (From Your iPhone)
+## 📱 First-Time Setup (From Your Phone, Tablet, or TV)
 
-1. **Connect your iPhone to the same Wi-Fi network** as your laptop.
-2. Open **Safari** on your phone and go to the easy hostname address shown in the desktop dashboard (e.g. `http://mylaptop.local:8000`).
+1. **Connect your phone, tablet, or device to the same Wi-Fi network** as your laptop.
+2. Open **any web browser** (Safari, Chrome, Firefox, etc.) on your device and go to the easy hostname address shown in the desktop dashboard (e.g. `http://mylaptop.local:8000`).
 3. **Complete the setup wizard**:
    * Enter the path to the folder on your laptop you want to browse (e.g. `C:\Users\YourName\Pictures`).
-   * (Optional) Set an **Access PIN** to protect your photos from other devices on the same network.
+   * *(Note: To secure your connections, you can configure an **Access PIN** locally inside the Windows desktop GUI sidebar).*
 4. **Add to Home Screen**:
-   * Tap Safari's Share button (↗️) and select **Add to Home Screen**.
-   * Launch PhotoBridge from your home screen for a premium, fullscreen app experience.
+    * Tap Safari's Share button (↗️) and select **Add to Home Screen**.
+    * Launch PhotoBridge from your home screen for a premium, fullscreen app experience.
 
 ---
 
 ## ✨ Features
 
+* **📱 Universal Cross-Platform Compatibility**: Fully compatible with any modern browser. Open and browse photos on iPhones, iPads, Android phones/tablets, smart TVs, or other laptops on the same Wi-Fi network.
 * **📦 Standalone Packaging & Zero-Dependency Portability (No Python Needed!)**: Can be compiled into a standalone directory distribution (`PhotoBridge.exe`) and packaged into a one-click Windows installer (`PhotoBridgeSetup.exe`). End users do not need Python or any development libraries installed to run the application.
 * **🌐 mDNS Hostname Resolution (`.local` URL)**: Exposes a persistent host-based address (e.g. `http://<your-device-name>.local:8000`) for easy bookmarking, keeping connections active when the laptop's numeric IP changes.
 * **🛡️ Elevated Inbound Firewalling (Auto-Managed)**: The installer and Control Center automatically manage Windows Firewall exceptions for Port 8000 on private Wi-Fi profiles, handling setup and clean removal on uninstall.
@@ -47,7 +48,7 @@ PhotoBridge is a local web application that runs on a Windows laptop and lets an
 * **📱 Strict Mobile Privacy**: Headers set to `Cache-Control: private, no-store, must-revalidate` — phone browsers are strictly forbidden from writing media to phone disk storage.
 * **🔴 Live Photos Support**: Paired images and video clips (e.g. `.HEIC` + `.MOV`) show a "LIVE" badge in the viewer. Touch-and-hold to play the clip.
 * **❤️ Mark Favorites**: Tap the heart button to save items to your favorites directory (saved locally).
-* **🔒 Localhost & Path Traversal Security**: Folder picker and settings can only be edited directly from the host laptop. Files are resolved via URL-safe base64 memory IDs.
+* **🔒 Localhost & Access PIN Security**: Folder picker, settings, and PIN management can only be edited directly from the host laptop GUI. Access PINs are stored as secure, salted PBKDF2-HMAC-SHA256 hashes, with thread-safe client IP rate limiting (locking out IPs after 5 failures) to prevent network-based brute-force attacks. Files are resolved via URL-safe base64 memory IDs.
 
 ---
 

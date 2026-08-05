@@ -41,7 +41,7 @@ def test_api_get_config(mock_config, client):
 def test_api_set_config_forbidden(mock_config):
     # Simulate a client connecting from an external LAN IP
     external_client = TestClient(app, client=("192.168.1.50", 50000))
-    response = external_client.post("/api/config", json={"photos_dir": "/some/path", "access_pin": None})
+    response = external_client.post("/api/config", json={"photos_dir": "/some/path"})
     assert response.status_code == 403
     assert "only allowed from the host laptop" in response.json()["detail"]
 
@@ -50,28 +50,21 @@ def test_api_set_config_local_success(mock_config, client, tmp_path):
     os.makedirs(target_dir, exist_ok=True)
     
     with patch("app.main.set_photos_dir") as mock_set_dir, \
-         patch("app.main.set_access_pin") as mock_set_pin, \
          patch.object(media_index, "rescan") as mock_rescan:
         
         mock_set_dir.return_value = {
             "photos_dir": target_dir,
             "port": 8000,
-            "configured": True
-        }
-        mock_set_pin.return_value = {
-            "photos_dir": target_dir,
-            "port": 8000,
-            "access_pin": "1234",
-            "pin_required": True,
-            "configured": True
+            "configured": True,
+            "pin_required": False
         }
         
         # Test client uses loopback 127.0.0.1 by default
-        response = client.post("/api/config", json={"photos_dir": target_dir, "access_pin": "1234"})
+        response = client.post("/api/config", json={"photos_dir": target_dir})
         assert response.status_code == 200
         data = response.json()
         assert data["photos_dir"] == target_dir
-        assert data["pin_required"] is True
+        assert data["pin_required"] is False
 
 def test_api_select_folder_local(mock_config, client):
     with patch("app.main._open_folder_dialog", return_value="/selected/path"):
@@ -273,4 +266,38 @@ def test_startup_and_shutdown_events():
     with patch("app.media.clear_thumb_cache") as mock_clear:
         shutdown_event()
         mock_clear.assert_called_once()
+
+
+def test_verify_access_pin_rate_limiting(client):
+    from app.main import pin_limiter
+    # Reset limiter for this test
+    pin_limiter.record_success("192.168.1.200")
+    
+    with patch("app.main.get_config", return_value={
+        "photos_dir": "/mock/photos",
+        "port": 8000,
+        "access_pin": "9999",  # legacy plaintext fallback verified in tests too
+        "pin_required": True,
+        "configured": True
+    }):
+        # Run 5 failed attempts from custom client IP 192.168.1.200
+        custom_client = TestClient(app, client=("192.168.1.200", 50000))
+        for _ in range(5):
+            response = custom_client.get("/api/albums", headers={"x-photobridge-pin": "wrong"})
+            assert response.status_code == 401
+            
+        # The 6th request should trigger a 429 lockout
+        response = custom_client.get("/api/albums", headers={"x-photobridge-pin": "wrong"})
+        assert response.status_code == 429
+        assert "Too many failed PIN attempts" in response.json()["detail"]
+        
+        # A successful PIN should still be locked out if the IP is currently locked
+        response = custom_client.get("/api/albums", headers={"x-photobridge-pin": "9999"})
+        assert response.status_code == 429
+        
+        # Success from a DIFFERENT IP should not be locked out
+        other_client = TestClient(app, client=("192.168.1.201", 50000))
+        with patch.object(media_index, "get_albums", return_value=[]):
+            response = other_client.get("/api/albums", headers={"x-photobridge-pin": "9999"})
+            assert response.status_code == 200
 

@@ -186,6 +186,22 @@ class PhotoBridgeGUI:
         sidebar_btns = tk.Frame(sidebar, bg=SIDEBAR_BG, padx=8, pady=12)
         sidebar_btns.pack(fill="x", side="bottom")
 
+        # 🔑 Set Access PIN (with left accent bar)
+        pin_wrap = tk.Frame(sidebar_btns, bg=ACCENT_BAR)
+        pin_wrap.pack(fill="x", pady=(0, 6))
+
+        self.btn_pin = tk.Button(
+            pin_wrap, text="🔑 Set Access PIN",
+            command=self.change_access_pin,
+            bg=BTN_DARK_BG, fg=TEXT_COLOR,
+            activebackground=BTN_DARK_HVR, activeforeground=TEXT_WHITE,
+            font=("Segoe UI", 8), bd=0, relief="flat",
+            cursor="hand2", pady=7, padx=10, anchor="w"
+        )
+        self.btn_pin.pack(fill="both", expand=True, padx=(3, 0))
+        self.btn_pin.bind("<Enter>", lambda e: self.btn_pin.configure(bg=BTN_DARK_HVR))
+        self.btn_pin.bind("<Leave>", lambda e: self.btn_pin.configure(bg=BTN_DARK_BG))
+
         # Check for Updates (with left accent bar)
         upd_wrap = tk.Frame(sidebar_btns, bg=ACCENT_BAR)
         upd_wrap.pack(fill="x", pady=(0, 6))
@@ -484,8 +500,9 @@ class PhotoBridgeGUI:
                     bg=DISABLED_BG, fg=DISABLED_FG
                 )
 
-        # Update photos directory label
+        # Update photos directory and PIN labels
         self.update_folder_label()
+        self.update_pin_label()
 
         # Reschedule check in 1.5 seconds
         self.root.after(1500, self.update_status_loop)
@@ -502,6 +519,152 @@ class PhotoBridgeGUI:
                 self.dir_val.configure(text="Not Configured", fg=RED_COLOR)
         except Exception:
             self.dir_val.configure(text="Error Loading Config", fg=RED_COLOR)
+
+    def update_pin_label(self):
+        """Read config.json and update the PIN status label in the GUI."""
+        try:
+            from app.config import get_config
+            config = get_config()
+            if config.get("pin_required"):
+                self.btn_pin.configure(text="🔑 PIN: Secure")
+            else:
+                self.btn_pin.configure(text="🔑 PIN: Public")
+        except Exception:
+            self.btn_pin.configure(text="🔑 PIN: Error")
+
+    def change_access_pin(self):
+        """Open a modern, custom dialog to change or clear the Access PIN."""
+        if self.server_running:
+            messagebox.showerror(
+                "Server Running",
+                "The server is currently running.\n\nPlease stop the server before modifying security PIN settings.",
+                parent=self.root
+            )
+            return
+
+        pin_win = tk.Toplevel(self.root)
+        pin_win.title("Configure Access PIN")
+        pin_win.configure(bg=MAIN_BG)
+        pin_win.resizable(False, False)
+        
+        # Center over parent
+        pin_win.transient(self.root)
+        pin_win.grab_set()
+        
+        # Geometry
+        width, height = 380, 250
+        x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (width // 2)
+        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (height // 2)
+        pin_win.geometry(f"{width}x{height}+{x}+{y}")
+        
+        # Header
+        hdr = tk.Frame(pin_win, bg=CARD_BG, padx=15, pady=12, bd=0)
+        hdr.pack(fill="x", side="top")
+        tk.Label(
+            hdr, text="🔑 Configure Access PIN", 
+            font=("Segoe UI", 12, "bold"), fg=TEXT_WHITE, bg=CARD_BG
+        ).pack(side="left")
+        
+        # Body frame
+        body = tk.Frame(pin_win, bg=MAIN_BG, padx=20, pady=15)
+        body.pack(fill="both", expand=True)
+        
+        desc = tk.Label(
+            body, 
+            text="Enter a new security PIN for remote devices, or leave the input empty to make the connection public.",
+            font=("Segoe UI", 9), fg=TEXT_COLOR, bg=MAIN_BG,
+            justify="left", wraplength=340
+        )
+        desc.pack(anchor="w", pady=(0, 12))
+        
+        # Entry frame for side-by-side input and toggle eye
+        entry_frame = tk.Frame(body, bg=MAIN_BG)
+        entry_frame.pack(fill="x", pady=(0, 15))
+
+        entry_val = tk.StringVar()
+        
+        # Load and deobfuscate current PIN if set
+        try:
+            from app.config import get_config
+            from app.security import deobfuscate_pin
+            config = get_config()
+            saved_pin = deobfuscate_pin(config.get("access_pin_local"))
+            if saved_pin:
+                entry_val.set(saved_pin)
+        except Exception:
+            pass
+
+        entry = tk.Entry(
+            entry_frame, textvariable=entry_val, show="*",
+            bg=CARD_BG, fg=TEXT_WHITE, insertbackground=TEXT_WHITE,
+            font=("Segoe UI", 11), bd=1, relief="solid",
+            highlightbackground=CARD_BORDER, highlightthickness=0
+        )
+        entry.pack(side="left", fill="x", expand=True, ipady=4)
+        entry.focus_set()
+
+        # Toggle eye unmask action
+        def toggle_eye():
+            if entry.cget("show") == "*":
+                entry.configure(show="")
+                btn_eye.configure(text="🙈")
+            else:
+                entry.configure(show="*")
+                btn_eye.configure(text="👁")
+
+        btn_eye = tk.Button(
+            entry_frame, text="👁", command=toggle_eye,
+            bg=BTN_DARK_BG, fg=TEXT_COLOR, activebackground=BTN_DARK_HVR, activeforeground=TEXT_WHITE,
+            font=("Segoe UI", 10), bd=1, relief="solid", highlightbackground=CARD_BORDER,
+            padx=8, cursor="hand2"
+        )
+        btn_eye.pack(side="right", padx=(6, 0), ipady=2)
+        btn_eye.bind("<Enter>", lambda e: btn_eye.configure(bg=BTN_DARK_HVR))
+        btn_eye.bind("<Leave>", lambda e: btn_eye.configure(bg=BTN_DARK_BG))
+        
+        # Buttons Row
+        btns = tk.Frame(body, bg=MAIN_BG)
+        btns.pack(fill="x", side="bottom")
+        
+        def save():
+            new_pin = entry_val.get().strip()
+            # Disable button / show updating
+            btn_save.configure(state="disabled", text="Saving...")
+            
+            def run_save():
+                try:
+                    from app.config import set_access_pin
+                    set_access_pin(new_pin)
+                    self.root.after(0, lambda: messagebox.showinfo("Success", "Access PIN updated successfully.", parent=pin_win))
+                    self.root.after(0, pin_win.destroy)
+                except Exception as e:
+                    self.root.after(0, lambda: messagebox.showerror("Error", f"Failed to save PIN: {e}", parent=pin_win))
+                    self.root.after(0, lambda: btn_save.configure(state="normal", text="Save"))
+            
+            threading.Thread(target=run_save, daemon=True).start()
+            
+        btn_cancel = tk.Button(
+            btns, text="Cancel", command=pin_win.destroy,
+            bg=BTN_DARK_BG, fg=TEXT_COLOR, activebackground=BTN_DARK_HVR, activeforeground=TEXT_WHITE,
+            font=("Segoe UI", 9, "bold"), bd=1, relief="solid", highlightbackground=CARD_BORDER,
+            padx=14, pady=5, cursor="hand2"
+        )
+        btn_cancel.pack(side="left")
+        btn_cancel.bind("<Enter>", lambda e: btn_cancel.configure(bg=BTN_DARK_HVR))
+        btn_cancel.bind("<Leave>", lambda e: btn_cancel.configure(bg=BTN_DARK_BG))
+        
+        btn_save = tk.Button(
+            btns, text="Save", command=save,
+            bg=GREEN_BTN, fg="#0a1628", activebackground=GREEN_BTN_HVR, activeforeground="#0a1628",
+            font=("Segoe UI", 9, "bold"), bd=0, relief="flat",
+            padx=18, pady=6, cursor="hand2"
+        )
+        btn_save.pack(side="right")
+        btn_save.bind("<Enter>", lambda e: btn_save.configure(bg=GREEN_BTN_HVR))
+        btn_save.bind("<Leave>", lambda e: btn_save.configure(bg=GREEN_BTN))
+        
+        # Enter key bind
+        entry.bind("<Return>", lambda e: save())
 
     def choose_directory(self):
         """Open a native Windows folder selector, write the path to config, and sync the server."""

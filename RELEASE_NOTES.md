@@ -4,7 +4,20 @@ This document tracks all version releases of PhotoBridge, highlighting new featu
 
 ---
 
-## [v1.1.0] — 2026-08-06 (Current Release)
+## [v1.1.1] — 2026-08-06 (Current Release)
+
+### 🔒 Access PIN Hashing & Rate Limiting (GUI Isolation)
+- **PBKDF2-HMAC-SHA256 Encryption**: Upgraded the mobile Access PIN security from raw plaintext storage on-disk to a salted cryptographic hash.
+- **XOR Local Obfuscation**: Implemented a local XOR cipher for `config.json`'s `access_pin_local` parameter, allowing the local GUI to securely store, retrieve, and show the set PIN to the user.
+- **Thread-safe Sliding-window Rate Limiter**: Added client IP tracking to lock out devices for 60 seconds after 5 consecutive incorrect PIN entry attempts on protected endpoints, returning `HTTP 429 Too Many Requests`.
+- **Local GUI Admin Control**: Restricted PIN changes exclusively to the local desktop GUI. Removed PIN inputs from the PWA web clients and blocked HTTP API methods from altering security parameters.
+- **Improved Sidebar Layout**: Added a compact **🔑 Set Access PIN** button inside the sidebar (styled to `"🔑 PIN: Secure"` or `"🔑 PIN: Public"` to fit sidebar widths).
+- **Liveness Guard & Mask Toggle**: Prevented PIN modification while the server is active, and added an interactive **👁** / **🙈** show/hide toggle inside the PIN configuration window.
+- **Updated Test coverage**: Added full test coverage for hashing, local obfuscated storage, and sliding-window rate limit triggers.
+
+---
+
+## [v1.1.0] — 2026-08-06
 
 ### 🎨 Premium Control Center Redesign (v2)
 - **Split-Screen Dashboard Layout**: Re-architected the Tkinter desktop GUI into a professional split-pane layout featuring a dark navy theme (`BG_DEEP`, `SIDEBAR_BG`, `MAIN_BG`), a left navigation bar, and a right cards details panel.

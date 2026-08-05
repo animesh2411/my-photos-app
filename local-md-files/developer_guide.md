@@ -120,7 +120,7 @@ curl http://localhost:8000/api/config
 # 2. Configure Directory Path (restricted to localhost)
 curl -X POST http://localhost:8000/api/config \
   -H "Content-Type: application/json" \
-  -d "{\"photos_dir\": \"C:\\\\Users\\\\YourName\\\\Pictures\", \"access_pin\": \"1234\"}"
+  -d "{\"photos_dir\": \"C:\\\\Users\\\\YourName\\\\Pictures\"}"
 
 # 3. Request Scanned Media JSON Index
 curl -H "X-PhotoBridge-PIN: 1234" http://localhost:8000/api/media

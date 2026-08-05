@@ -56,7 +56,6 @@ async def log_requests_middleware(request: Request, call_next):
 
 class ConfigRequest(BaseModel):
     photos_dir: str
-    access_pin: str | None = None
 
 
 class ConfigResponse(BaseModel):
@@ -84,6 +83,9 @@ def get_lan_ip() -> str:
 
 from fastapi import Request, Header, HTTPException, status
 from app.config import set_access_pin
+from app.security import PinRateLimiter
+
+pin_limiter = PinRateLimiter(limit=5, window_seconds=60.0)
 
 def verify_local_request(request: Request):
     """Ensure configuration endpoints are only called from localhost."""
@@ -94,17 +96,34 @@ def verify_local_request(request: Request):
             detail="Configuration changes are only allowed from the host laptop (localhost)"
         )
 
-def verify_access_pin(x_photobridge_pin: str = Header(None), pin: str = None):
-    """Validate access PIN if configured, supporting both custom header and query string."""
+def verify_access_pin(request: Request, x_photobridge_pin: str = Header(None), pin: str = None):
+    """Validate access PIN if configured, supporting both custom header and query string with rate limiting."""
     config = get_config()
     if config["pin_required"]:
+        client_ip = request.client.host if request.client else "127.0.0.1"
+        
+        # 1. Check rate limit
+        if pin_limiter.is_locked_out(client_ip):
+            secs = pin_limiter.get_remaining_lock_time(client_ip)
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Too many failed PIN attempts. Locked out. Please try again in {secs} seconds."
+            )
+            
         expected = config["access_pin"]
         provided = x_photobridge_pin or pin
-        if not provided or provided != expected:
+        
+        from app.security import verify_hash
+        if not provided or not verify_hash(provided, expected):
+            # Record failure
+            pin_limiter.record_failure(client_ip)
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid or missing Access PIN"
             )
+            
+        # 2. Reset on success
+        pin_limiter.record_success(client_ip)
 
 
 # ============================================================================
@@ -127,13 +146,12 @@ def api_get_config():
 @app.post("/api/config", response_model=ConfigResponse)
 def api_set_config(request: ConfigRequest, req: Request):
     """
-    Set the photos directory and optional access PIN.
+    Set the photos directory.
     Validates that the path exists, saves to config.json, and rescans.
     """
     verify_local_request(req)
     try:
         config = set_photos_dir(request.photos_dir)
-        config = set_access_pin(request.access_pin)
 
         # Rescan the new directory
         media_index.photos_dir = request.photos_dir

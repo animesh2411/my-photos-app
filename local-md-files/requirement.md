@@ -291,8 +291,8 @@ so the phone can reach it over LAN.
 2. `pip install -r requirements.txt`.
 3. How to run: Double-click `local-batch-files/run_control_center.bat` to launch the native desktop Control Center (runs without background console popups, supports one-time firewall setup, checks status, and starts/stops the server invisibly). Day-to-day console execution can also be started with `local-batch-files/run_app.bat` or `python run.py`.
 4. Dynamic LAN IP detection and startup banner instructions.
-5. How to open it on iPhone Safari, complete the one-time setup screen by entering the full path to an existing folder on the laptop (e.g. `C:\Users\you\Pictures`), configuring an optional Access PIN, and "Add to Home Screen".
-6. How to change the folder or security PIN later via the gear icon settings modal in the app.
+5. How to open it on iPhone Safari, complete the one-time setup screen by entering the full path to an existing folder on the laptop (e.g. `C:\Users\you\Pictures`), and "Add to Home Screen".
+6. How to configure the Access PIN locally via the Windows desktop GUI sidebar to protect remote connections.
 7. A short note that the laptop must stay awake and on the same WiFi network
    for the phone to reach it, and a pointer to using Task Scheduler or NSSM
    if they want it running continuously as a background service.
@@ -352,7 +352,7 @@ so the phone can reach it over LAN.
       just from the laptop's own browser.
 - [ ] **Albums Grid Redesign**: Albums tab displays as a full-screen card grid with cover photos and counts, and tapping one displays its photos with a back navigation button.
 - [ ] **Viewer Controls**: Controls are circular SVG button icons with tap scale animations and an animated iOS red favorite heart.
-- [ ] **LAN Security Protection**: Settings modification and folder browser calls are rejected with 403 Forbidden on remote devices, and unauthorized devices are presented with a glassmorphic PIN lock screen before receiving media.
+- [ ] **LAN Security Protection**: Settings modification and folder browser calls are rejected with 403 Forbidden on remote devices. Unauthorized devices are presented with a glassmorphic PIN lock screen validated against a salted PBKDF2 hash, with IP-based sliding window rate limiting (5 failed attempts locks out the client for 60 seconds) restricting brute force.
 
 ## 12. Standalone Packaging & CI/CD Release Requirements
 

@@ -22,7 +22,8 @@ my-photos-app/
 │   │   ├── config.py         # Configuration manager (config.json I/O)
 │   │   ├── scanner.py        # Filesystem scanner & metadata generator
 │   │   ├── paths.py          # AppData / sys._MEIPASS paths manager
-│   │   └── media.py          # HEIC decoder & seekable range streaming
+│   │   ├── media.py          # HEIC decoder & seekable range streaming
+│   │   └── security.py       # PBKDF2 hashing, XOR local cipher, rate limiter
 │   ├── run.py                # Server entry point & thread daemon
 │   ├── test_api.py           # REST API test suite
 │   └── diagnose.py           # Diagnostics utility
@@ -70,6 +71,12 @@ my-photos-app/
 - **Full Release Automation**: Built a GitHub Actions workflow `.github/workflows/release.yml` running on `windows-latest`.
 - **Auto-Versioning**: Commits merged to `master` trigger the CI workflow to verify builds. Creating and pushing a release branch matching `release/v*` automatically extracts the version, tags the commit, pushes the tag to GitHub, and publishes a public GitHub Release with `PhotoBridgeSetup.exe` attached.
 
+### 🔒 5. Access PIN Hashing, Rate Limiting, and local GUI Isolation
+- **PBKDF2 SHA-256 Hashing**: Replaced legacy plaintext password storage in `config.json` with a salted cryptographic hash (`salt$hash` with 100,000 iterations).
+- **XOR Obfuscation**: Implemented a local XOR cipher for `access_pin_local` so that the local GUI can securely store, retrieve, and show the set PIN to the user.
+- **IP Rate Limiting**: Added thread-safe client IP tracking to lock out devices for 60 seconds after 5 consecutive incorrect attempts.
+- **Sidebar & eye toggle**: Placed a compact status button in the Control Center sidebar and added an interactive eye show/hide button to toggle password visibility in the setup dialog.
+
 ---
 
 ## 4. Summary of Completed Deliverables
@@ -81,6 +88,7 @@ my-photos-app/
 | UAC Elevation | ✅ Complete | ShellExecuteW wrapper successfully manages inbound port rules |
 | Thread Pool Offloading | ✅ Complete | Heavy I/O routes converted to def to prevent asyncio timeouts |
 | Live Log Viewer | ✅ Complete | GUI reads relocated `app.log` in real time |
+| Access PIN Security | ✅ Complete | PBKDF2 hashing, XOR local obfuscation, and client IP rate limiter |
 | CI/CD Automation | ✅ Complete | Auto-tagging and release publishing configured on master pushes |
 
-Generated: August 5, 2026
+Generated: August 6, 2026

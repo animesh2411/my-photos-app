@@ -107,7 +107,12 @@ sequenceDiagram
 Any actions altering directories or displaying local dialogues (`POST /api/config` and `POST /api/select-folder`) check if the incoming connection is originating from the host machine loopback address (`127.0.0.1`, `localhost`). Remote calls are rejected with a `403 Forbidden` error.
 
 ### 2. Access PIN Authentication
-When a security PIN is set, all media endpoints require verification. JavaScript network requests send the PIN inside the `X-PhotoBridge-PIN` header, while native elements (`<img>`/`<video>`) append the PIN inside query strings (`?pin=XXXX`).
+When a security PIN is configured, all media endpoints require validation. 
+* **Salted PBKDF2 Hash**: The PIN is stored as a salted PBKDF2-HMAC-SHA256 hash (`salt$hash` with 100,000 iterations) inside `config.json` for server authentication.
+* **XOR Local Obfuscation**: The local host GUI stores and retrieves the PIN using a local XOR-obfuscation key (`access_pin_local`), permitting secure unmasked viewing within the laptop console while hiding raw plaintext from casual text-editor views.
+* **Client-IP Sliding Window Rate Limiting**: The server tracks failed PIN attempts by client IP. If a client records 5 consecutive failed attempts, it is locked out for 60 seconds. Subsequent requests return a `429 Too Many Requests` status code with a retry timer.
+* **Local GUI Isolation**: PIN setup and editing is restricted entirely to the host laptop GUI. Remote web app clients cannot set, modify, or delete the PIN, and API POST calls attempting to submit PIN configurations are blocked.
+* **Client Transport**: Authorized JavaScript web requests transmit the PIN inside the `X-PhotoBridge-PIN` header, while native page elements (`<img>`/`<video>`) attach the PIN via the `?pin=XXXX` query string.
 
 ### 3. Path Traversal Defense
 No absolute or relative file paths are exposed or accepted by the client. Files are mapped to in-memory URL-safe base64 indices generated during the scanner sweep.

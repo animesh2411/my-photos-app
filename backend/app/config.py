@@ -48,10 +48,25 @@ def get_config() -> dict:
     is_configured = photos_dir is not None and os.path.isdir(photos_dir)
     access_pin = config.get("access_pin")
 
+    # Migrate legacy plaintext PIN to hash in-place
+    if access_pin is not None and access_pin != "" and "$" not in access_pin:
+        from app.security import hash_pin, obfuscate_pin
+        hashed = hash_pin(access_pin)
+        obfuscated = obfuscate_pin(access_pin)
+        config["access_pin"] = hashed
+        config["access_pin_local"] = obfuscated
+        try:
+            with open(config_path, 'w') as f:
+                json.dump(config, f, indent=2)
+            access_pin = hashed
+        except Exception:
+            pass
+
     return {
         "photos_dir": photos_dir,
         "port": config.get("port", 8000),
         "access_pin": access_pin,
+        "access_pin_local": config.get("access_pin_local"),
         "pin_required": access_pin is not None and access_pin != "",
         "configured": is_configured
     }
@@ -64,7 +79,9 @@ def set_access_pin(pin: str | None) -> dict:
     with open(config_path, 'r') as f:
         config = json.load(f)
 
-    config["access_pin"] = pin if pin else None
+    from app.security import hash_pin, obfuscate_pin
+    config["access_pin"] = hash_pin(pin)
+    config["access_pin_local"] = obfuscate_pin(pin)
     
     with open(config_path, 'w') as f:
         json.dump(config, f, indent=2)
