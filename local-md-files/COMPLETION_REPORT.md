@@ -25,7 +25,7 @@ my-photos-app/
 │   │   ├── media.py          # HEIC decoder & seekable range streaming
 │   │   └── security.py       # PBKDF2 hashing, XOR local cipher, rate limiter
 │   ├── run.py                # Server entry point & thread daemon
-│   ├── test_api.py           # REST API test suite
+│   ├── verify_api.py         # REST API verification script
 │   └── diagnose.py           # Diagnostics utility
 ├── frontend/
 │   ├── index.html            # PWA template HTML
@@ -89,6 +89,9 @@ my-photos-app/
 | Thread Pool Offloading | ✅ Complete | Heavy I/O routes converted to def to prevent asyncio timeouts |
 | Live Log Viewer | ✅ Complete | GUI reads relocated `app.log` in real time |
 | Access PIN Security | ✅ Complete | PBKDF2 hashing, XOR local obfuscation, and client IP rate limiter |
+| Hostname Diagnostics | ✅ Complete | Asynchronous .local DNS verification and UDP 5353 rules |
+| Scan Progress Tracker | ✅ Complete | Polling status API and dynamic scanning progress toast UI |
+| Path Re-Validation | ✅ Complete | Per-request dynamic photos_dir liveness checks |
 | CI/CD Automation | ✅ Complete | Auto-tagging and release publishing configured on master pushes |
 
 Generated: August 6, 2026

@@ -99,6 +99,14 @@ def verify_local_request(request: Request):
 def verify_access_pin(request: Request, x_photobridge_pin: str = Header(None), pin: str = None):
     """Validate access PIN if configured, supporting both custom header and query string with rate limiting."""
     config = get_config()
+    
+    # Per-request path re-validation (config["configured"] dynamically verifies dir existence on disk)
+    if not config["configured"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Photos directory is not configured yet or is no longer accessible (e.g. disconnected drive)"
+        )
+
     if config["pin_required"]:
         client_ip = request.client.host if request.client else "127.0.0.1"
         
@@ -262,6 +270,13 @@ def api_rescan(album: str = None, dependencies=Depends(verify_access_pin)):
         return {"album": album, "status": "cache cleared"}
     media_index.rescan()
     return {"albums": len(media_index._albums)}
+
+
+@app.get("/api/scan-status")
+def api_get_scan_status(dependencies=Depends(verify_access_pin)):
+    """Get the current filesystem scan progress/status."""
+    from app.scanner import SCAN_STATUS
+    return SCAN_STATUS
 
 
 # ============================================================================

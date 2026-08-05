@@ -31,11 +31,14 @@ PhotoBridge is fully implemented, packaged, and automated for deployment. Here's
   - **Continuous Deployment (CD)**: Triggers on pushes of a release branch (`release/v*`) to extract the version name, create and push the Git tag, compile the installer, and publish a public GitHub Release with `PhotoBridgeSetup.exe` attached.
 - ✅ **Merged Dependencies**: Merged `requirements-build.txt` and `requirements.txt` into a single, unified file.
 
-### 6. Salted Access PIN Hashing & Rate Limiting
+### 6. Salted Access PIN Hashing, Rate Limiting, & Hostname Diagnostics
 - ✅ **PBKDF2 SHA-256 Hashing** — Swapped mobile Access PIN storage from plaintext to a salted cryptographic hash.
 - ✅ **XOR Local Obfuscation & Eye Toggle** — Configured the desktop GUI to save the PIN locally via a XOR cipher (`access_pin_local`), allowing the Control Center to unmask it on eye toggle click.
 - ✅ **Client-IP Sliding Window Lockout** — Added a thread-safe `PinRateLimiter` blocking remote connections for 60 seconds after 5 consecutive incorrect PIN entries.
 - ✅ **GUI-Isolated Administration** — Stripped PIN configuration from web/PWA clients, restricting security updates to the local laptop Control Center GUI.
+- ✅ **mDNS UDP 5353 Firewall Coverage & Diagnostics Test Button** — Configured setup scripts to register UDP 5353 firewall rules, and added a native **Test** hostname resolution checker to diagnose DNS resolving issues asynchronously.
+- ✅ **Per-Request Path Re-Validation** — Integrated dynamic directory liveness checks inside endpoint authorization dependencies, preventing access immediately if a photos drive is disconnected.
+- ✅ **Scan Progress Tracking** — Declared a global `SCAN_STATUS` tracker state API and polling UI loops to show real-time progress indicators to mobile browsers during a rescan.
 
 ---
 
@@ -56,7 +59,7 @@ my-photos-app/
 │   │   ├── media.py          (HEIC decoder & range seeks)
 │   │   └── security.py       (PBKDF2 hashing, XOR local cipher, rate limiter)
 │   ├── run.py                (Server entry point & thread daemon)
-│   ├── test_api.py           (API verification script)
+│   ├── verify_api.py         (API verification script)
 │   └── diagnose.py           (Diagnostics utility)
 ├── frontend/
 │   ├── index.html            (PWA template shell)

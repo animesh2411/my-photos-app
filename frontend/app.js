@@ -306,14 +306,33 @@ async function loadMoreAlbumMedia(albumName) {
     }
 }
 
+async function pollScanStatus() {
+    try {
+        const res = await authedFetch('/api/scan-status');
+        if (res.ok) {
+            const data = await res.json();
+            if (data.status === 'scanning') {
+                showToast(`Scanning library... Found ${data.files_found} media files.`, true);
+                setTimeout(pollScanStatus, 1000);
+            } else if (data.status === 'completed') {
+                showToast(`Scan complete! Found ${data.files_found} files.`);
+            }
+        }
+    } catch (err) {
+        console.error('Failed to poll scan status', err);
+    }
+}
+
 async function rescanMedia() {
+    showToast('Starting filesystem scan...', true);
+    setTimeout(pollScanStatus, 500);
+
     const res = await authedFetch('/api/rescan', { method: 'POST' });
     if (res.ok) {
         state.loadedAlbums = {};
         state.media = [];
         await loadAlbums();
         await loadAlbumMedia('All Photos');
-        showToast('Photos rescanned');
         render();
     }
 }
@@ -1372,12 +1391,26 @@ function openSettings() {
 // UTILITIES
 // ============================================================================
 
-function showToast(message) {
-    const toast = document.createElement('div');
-    toast.className = 'toast';
-    toast.textContent = message;
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
+function showToast(message, isScanning = false) {
+    let toast = document.querySelector('.toast.scanning-toast');
+    if (isScanning) {
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.className = 'toast scanning-toast';
+            document.body.appendChild(toast);
+        }
+        toast.textContent = message;
+        return;
+    }
+
+    const scanToast = document.querySelector('.toast.scanning-toast');
+    if (scanToast) scanToast.remove();
+
+    const newToast = document.createElement('div');
+    newToast.className = 'toast';
+    newToast.textContent = message;
+    document.body.appendChild(newToast);
+    setTimeout(() => newToast.remove(), 3000);
 }
 
 async function openLogsModal() {
