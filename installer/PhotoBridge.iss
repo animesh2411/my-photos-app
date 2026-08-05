@@ -60,14 +60,14 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChang
 
 ; Create firewall rule during installation (elevated, silent)
 Filename: "powershell.exe"; \
-    Parameters: "-NoProfile -WindowStyle Hidden -Command ""if (-not (Get-NetFirewallRule -DisplayName 'PhotoBridge Port 8000' -ErrorAction SilentlyContinue)) {{ New-NetFirewallRule -DisplayName 'PhotoBridge Port 8000' -Direction Inbound -LocalPort 8000 -Protocol TCP -Action Allow -Profile Private }}"""; \
+    Parameters: "-NoProfile -WindowStyle Hidden -Command ""if (-not (Get-NetFirewallRule -DisplayName 'PhotoBridge Port 8000' -ErrorAction SilentlyContinue)) {{ New-NetFirewallRule -DisplayName 'PhotoBridge Port 8000' -Direction Inbound -LocalPort 8000 -Protocol TCP -Action Allow -Profile Private }}; if (-not (Get-NetFirewallRule -DisplayName 'PhotoBridge mDNS' -ErrorAction SilentlyContinue)) {{ New-NetFirewallRule -DisplayName 'PhotoBridge mDNS' -Direction Inbound -LocalPort 5353 -Protocol UDP -Action Allow -Profile Private }}"""; \
     Flags: runhidden waituntilterminated; \
     StatusMsg: "Configuring Windows Firewall..."
 
 [UninstallRun]
 ; Remove firewall rule on uninstall
 Filename: "powershell.exe"; \
-    Parameters: "-NoProfile -WindowStyle Hidden -Command ""Remove-NetFirewallRule -DisplayName 'PhotoBridge Port 8000' -ErrorAction SilentlyContinue"""; \
+    Parameters: "-NoProfile -WindowStyle Hidden -Command ""Remove-NetFirewallRule -DisplayName 'PhotoBridge Port 8000' -ErrorAction SilentlyContinue; Remove-NetFirewallRule -DisplayName 'PhotoBridge mDNS' -ErrorAction SilentlyContinue"""; \
     Flags: runhidden waituntilterminated
 
 [UninstallDelete]

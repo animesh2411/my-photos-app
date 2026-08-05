@@ -301,3 +301,11 @@ def test_verify_access_pin_rate_limiting(client):
             response = other_client.get("/api/albums", headers={"x-photobridge-pin": "9999"})
             assert response.status_code == 200
 
+
+def test_api_scan_status(mock_config, client):
+    response = client.get("/api/scan-status")
+    assert response.status_code == 200
+    data = response.json()
+    assert "status" in data
+    assert "files_found" in data
+

@@ -56,7 +56,7 @@ Before submitting any code changes, verify your work:
    ```
 2. **Run the API Test Suite**:
    ```bash
-   python backend/test_api.py
+   python backend/verify_api.py
    ```
 3. **Launch the Server**:
    Double-click `local-batch-files/run_app.bat` or run:

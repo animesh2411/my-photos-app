@@ -33,12 +33,24 @@ def decode_id(encoded_id: str) -> str:
 
 
 
+SCAN_STATUS = {
+    "status": "idle",
+    "files_found": 0,
+    "album": None
+}
+
+
 def scan_folder_recursive(photos_dir: str, folder_path: str, album_name: str) -> List[Dict]:
     """
     Recursively scan a folder and all its subfolders.
     Returns a list of media dicts sorted newest-first.
     This is the core scanning function — called lazily per album on first request.
     """
+    global SCAN_STATUS
+    SCAN_STATUS["status"] = "scanning"
+    SCAN_STATUS["files_found"] = 0
+    SCAN_STATUS["album"] = album_name
+
     media_list = []
 
     for root, dirs, files in os.walk(folder_path):
@@ -53,6 +65,7 @@ def scan_folder_recursive(photos_dir: str, folder_path: str, album_name: str) ->
             else:
                 continue
 
+            SCAN_STATUS["files_found"] += 1
             file_path = os.path.join(root, filename)
             try:
                 st = os.stat(file_path)
@@ -86,6 +99,7 @@ def scan_folder_recursive(photos_dir: str, folder_path: str, album_name: str) ->
                 item["live_video_id"] = videos_by_key[key]
 
     media_list.sort(key=lambda x: x["date_taken"], reverse=True)
+    SCAN_STATUS["status"] = "completed"
     return media_list
 
 

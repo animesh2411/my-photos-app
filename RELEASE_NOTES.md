@@ -4,7 +4,17 @@ This document tracks all version releases of PhotoBridge, highlighting new featu
 
 ---
 
-## [v1.1.1] — 2026-08-06 (Current Release)
+## [v1.1.2] — 2026-08-06 (Current Release)
+
+### 🌐 LAN Connectivity, Scan Progress, & Path Liveness
+- **mDNS & UDP 5353 Firewall Exceptions**: Registered inbound UDP Port 5353 rules for Multicast DNS (`PhotoBridge mDNS`) in both the setup PowerShell commands and Inno Setup installer scripts to ensure Windows Firewall doesn't block local hostname resolution.
+- **mDNS Diagnostics Test Button**: Integrated an interactive **"Test"** diagnostics action button next to the "Easy Hostname" row. Executes background socket resolutions (`socket.gethostbyname`) to verify local mDNS resolver liveness and print helpful troubleshooting logs if resolving fails.
+- **Per-Request Path Re-Validation**: Configured the server dependencies to verify `os.path.isdir(photos_dir)` dynamically on every media catalog API request, immediately rejecting requests and informing users if network drives or USB photo cards are unplugged mid-session.
+- **Scan Progress Feedback API**: Built a real-time `/api/scan-status` endpoint tracking filesystem walker indices, and integrated a polling-based progress toast panel inside the PWA client (`Scanning library... Found X files`) to provide scanning status feedback.
+
+---
+
+## [v1.1.1] — 2026-08-06
 
 ### 🔒 Access PIN Hashing & Rate Limiting (GUI Isolation)
 - **PBKDF2-HMAC-SHA256 Encryption**: Upgraded the mobile Access PIN security from raw plaintext storage on-disk to a salted cryptographic hash.

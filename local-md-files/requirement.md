@@ -49,7 +49,7 @@ photobridge/
       media.py             # thumbnail generation, range-request file streaming
       config.py            # reads/writes config.json (photos_dir, port)
     run.py                # entry point: starts uvicorn in a background thread
-    test_api.py           # API test suite
+    verify_api.py         # API verification script
     diagnose.py           # API diagnostics utility script
     create_icons.py       # PWA icons generator script
   desktop_gui/             # desktop GUI controller app
@@ -328,31 +328,31 @@ so the phone can reach it over LAN.
 
 ## 11. Manual test checklist before calling it done
 
-- [ ] Server starts and prints the LAN URL, with "not yet configured" shown
+- [x] Server starts and prints the LAN URL, with "not yet configured" shown
       before any folder has been chosen.
-- [ ] From the iPhone, typing in a valid laptop folder path on the setup
+- [x] From the iPhone, typing in a valid laptop folder path on the setup
       screen successfully loads that folder's photos.
-- [ ] Typing an invalid/nonexistent path shows a clear inline error instead
+- [x] Typing an invalid/nonexistent path shows a clear inline error instead
       of a blank screen or crash.
-- [ ] Changing the folder later via the gear icon updates the grid to the
+- [x] Changing the folder later via the gear icon updates the grid to the
       new folder's contents.
-- [ ] Adding a new file to the configured photos folder and rescanning
+- [x] Adding a new file to the configured photos folder and rescanning
       shows it in the grid without restarting the server.
-- [ ] Thumbnails load for JPEG, PNG, and HEIC files.
-- [ ] Opening a video in the viewer plays it and allows scrubbing.
-- [ ] Swipe left/right in the viewer moves between items.
-- [ ] Favoriting an item and switching to the Favorites tab shows only that
+- [x] Thumbnails load for JPEG, PNG, and HEIC files.
+- [x] Opening a video in the viewer plays it and allows scrubbing.
+- [x] Swipe left/right in the viewer moves between items.
+- [x] Favoriting an item and switching to the Favorites tab shows only that
       item, and it persists after a page reload.
-- [ ] Search filters the grid by filename as you type.
-- [ ] Tapping Save on an iPhone opens the native share sheet and "Save
+- [x] Search filters the grid by filename as you type.
+- [x] Tapping Save on an iPhone opens the native share sheet and "Save
       Image"/"Save Video" actually adds it to the Photos app.
-- [ ] "Add to Home Screen" produces a full-screen icon with no Safari UI
+- [x] "Add to Home Screen" produces a full-screen icon with no Safari UI
       chrome.
-- [ ] The whole flow works from an iPhone on the same WiFi network, not
+- [x] The whole flow works from an iPhone on the same WiFi network, not
       just from the laptop's own browser.
-- [ ] **Albums Grid Redesign**: Albums tab displays as a full-screen card grid with cover photos and counts, and tapping one displays its photos with a back navigation button.
-- [ ] **Viewer Controls**: Controls are circular SVG button icons with tap scale animations and an animated iOS red favorite heart.
-- [ ] **LAN Security Protection**: Settings modification and folder browser calls are rejected with 403 Forbidden on remote devices. Unauthorized devices are presented with a glassmorphic PIN lock screen validated against a salted PBKDF2 hash, with IP-based sliding window rate limiting (5 failed attempts locks out the client for 60 seconds) restricting brute force.
+- [x] **Albums Grid Redesign**: Albums tab displays as a full-screen card grid with cover photos and counts, and tapping one displays its photos with a back navigation button.
+- [x] **Viewer Controls**: Controls are circular SVG button icons with tap scale animations and an animated iOS red favorite heart.
+- [x] **LAN Security Protection**: Settings modification and folder browser calls are rejected with 403 Forbidden on remote devices. Unauthorized devices are presented with a glassmorphic PIN lock screen validated against a salted PBKDF2 hash, with IP-based sliding window rate limiting (5 failed attempts locks out the client for 60 seconds) restricting brute force.
 
 ## 12. Standalone Packaging & CI/CD Release Requirements
 
@@ -361,10 +361,10 @@ so the phone can reach it over LAN.
 2. **Local AppData Directory Compliance**:
    - To align with Windows user privilege models, all write operations (creating/modifying `config.json`, writing logs to `app.log`, and building the `.thumbcache/` folder) must resolve under `%LOCALAPPDATA%\PhotoBridge` rather than the application's program directory. This bypasses admin permission failures when installed under `C:\Program Files`.
 3. **Elevated Inbound Firewall Rules**:
-   - The application setup must register a Windows Defender inbound TCP firewall exception for Port 8000 on the `Private` profile to allow incoming phone connection traffic.
+   - The application setup must register Windows Defender inbound exceptions for both TCP Port 8000 (app server) and UDP Port 5353 (mDNS) on the `Private` profile to allow incoming phone connection and hostname resolution traffic.
    - The desktop GUI's manual "Configure Firewall" button must run using the Win32 `ShellExecuteW` API with the `"runas"` verb to elevate PowerShell invisibly without quote-escaping or terminal window shell-wrapper issues.
 4. **Standalone Setup Installer**:
-   - Code must build into a single `PhotoBridgeSetup.exe` installer utilizing Inno Setup. The installer must manage shortcut registration, Add/Remove program registry entries, and automate firewall rule creations during setup and rule cleanups during uninstallation.
+   - Code must build into a single `PhotoBridgeSetup.exe` installer utilizing Inno Setup. The installer must manage shortcut registration, Add/Remove program registry entries, and automate firewall rule creations (both TCP 8000 and UDP 5353) during setup and rule cleanups during uninstallation.
 5. **Automated CI/CD Release Pipeline**:
    - The repository must feature a GitHub Actions workflow (`.github/workflows/release.yml`) running on `windows-latest`.
    - **Continuous Integration (CI)**: Pushes to `master` must automatically compile the code and build the installer, uploading it as a workflow artifact for validation. No public release or tag is generated.
@@ -376,4 +376,10 @@ so the phone can reach it over LAN.
 8. **mDNS Hostname Resolution**:
    - The system must retrieve the local hostname (via `socket.gethostname()`) and expose the case-insensitive `.local` bookmark address (e.g. `http://<hostname>.local:8000`) on both the console output and the GUI status card, ensuring persistent bookmarks.
 9. **Desktop UI Window Sizing**:
-   - The default window geometry of the desktop GUI must be set to `520x680` (minimum size `480x600`) to provide adequate vertical layout space for the server status block and connection URLs.
+   - The default window geometry of the desktop GUI must be set to `520x680` (minimum size `480x600`) to provide adequate vertical layout space for the server status block and connection URLs.
+10. **mDNS Hostname Diagnostics**:
+    - The desktop Control Center must provide an interactive **Test** diagnostics action button next to the easy hostname row. Clicking it must execute an asynchronous name resolution check (`socket.gethostbyname`) to verify local resolver liveness and report clean troubleshooting tips.
+11. **Scan Progress Tracking**:
+    - The scanner must track recursive folder file-discovery count progress, exposing `/api/scan-status` to let remote PWA clients poll progress updates and render live progress toast alerts (`Scanning library... Found X files`).
+12. **Per-Request Path Re-Validation**:
+    - The server authentication dependencies must verify directory liveness dynamically on every request, blocking client connections immediately if an external photos drive goes offline or becomes unreadable.

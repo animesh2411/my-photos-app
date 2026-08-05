@@ -406,11 +406,69 @@ class PhotoBridgeGUI:
             self.url_easy_lbl = url_lbl
             copy_btn.configure(command=lambda: self.copy_to_clipboard(self.url_easy))
 
+            # Diagnose/Test button for mDNS hostname
+            self.btn_diag = tk.Button(
+                row, text="Test", font=("Segoe UI", 8, "bold"),
+                bg=BTN_DARK_BG, fg=TEXT_COLOR,
+                activebackground=BTN_DARK_HVR, activeforeground=TEXT_WHITE,
+                bd=1, relief="solid", highlightbackground=CARD_BORDER,
+                cursor="hand2", padx=6, pady=2
+            )
+            self.btn_diag.pack(side="right", padx=(0, 6))
+            self.btn_diag.bind("<Enter>", lambda e: self.btn_diag.configure(bg=BTN_DARK_HVR))
+            self.btn_diag.bind("<Leave>", lambda e: self.btn_diag.configure(bg=BTN_DARK_BG))
+            self.btn_diag.configure(command=self.diagnose_hostname)
+
     def copy_to_clipboard(self, text):
         """Copy text to the system clipboard using tkinter's built-in API."""
         if text:
             self.root.clipboard_clear()
             self.root.clipboard_append(text)
+
+    def diagnose_hostname(self):
+        """Asynchronously resolve the local .local hostname to verify mDNS resolution."""
+        if not hasattr(self, 'url_easy') or not self.url_easy:
+            return
+        
+        # Disable button during test
+        self.btn_diag.configure(state="disabled", text="Testing...")
+        
+        def run_lookup():
+            try:
+                import urllib.parse
+                parsed = urllib.parse.urlparse(self.url_easy)
+                hostname = parsed.hostname
+                
+                import socket
+                # Perform mDNS socket lookup
+                ip = socket.gethostbyname(hostname)
+                
+                # Check if it resolved to something valid
+                if ip:
+                    self.root.after(0, lambda: messagebox.showinfo(
+                        "mDNS Diagnostics",
+                        f"Success!\n\nHostname '{hostname}' resolved successfully to IP {ip}.\n"
+                        "mDNS is active and working correctly on this network profile.",
+                        parent=self.root
+                    ))
+                else:
+                    raise Exception("Hostname resolved to empty IP")
+            except Exception as e:
+                self.root.after(0, lambda: messagebox.showerror(
+                    "mDNS Diagnostics",
+                    f"Warning: mDNS Hostname could not be resolved locally.\n\n"
+                    f"Details: {e}\n\n"
+                    "Suggestions:\n"
+                    "1. Confirm that Windows Firewall allows UDP Port 5353 inbound traffic.\n"
+                    "2. Verify that network profile is set to 'Private' in Windows Settings.\n"
+                    "3. Ensure the DNS Client service is running in Windows Services.",
+                    parent=self.root
+                ))
+            finally:
+                self.root.after(0, lambda: self.btn_diag.configure(state="normal", text="Test"))
+                
+        import threading
+        threading.Thread(target=run_lookup, daemon=True).start()
 
     def _on_dir_row_configure(self, event):
         """Adjust wraplength for directory label when the row resizes."""
@@ -759,6 +817,9 @@ class PhotoBridgeGUI:
             ps_cmd = (
                 "if (-not (Get-NetFirewallRule -DisplayName 'PhotoBridge Port 8000' -ErrorAction SilentlyContinue)) { "
                 "New-NetFirewallRule -DisplayName 'PhotoBridge Port 8000' -Direction Inbound -LocalPort 8000 -Protocol TCP -Action Allow -Profile Private "
+                "}; "
+                "if (-not (Get-NetFirewallRule -DisplayName 'PhotoBridge mDNS' -ErrorAction SilentlyContinue)) { "
+                "New-NetFirewallRule -DisplayName 'PhotoBridge mDNS' -Direction Inbound -LocalPort 5353 -Protocol UDP -Action Allow -Profile Private "
                 "}"
             )
             success = self.run_elevated_powershell(ps_cmd)
@@ -779,6 +840,9 @@ class PhotoBridgeGUI:
             ps_cmd = (
                 "if (Get-NetFirewallRule -DisplayName 'PhotoBridge Port 8000' -ErrorAction SilentlyContinue) { "
                 "Remove-NetFirewallRule -DisplayName 'PhotoBridge Port 8000' "
+                "}; "
+                "if (Get-NetFirewallRule -DisplayName 'PhotoBridge mDNS' -ErrorAction SilentlyContinue) { "
+                "Remove-NetFirewallRule -DisplayName 'PhotoBridge mDNS' "
                 "}"
             )
             success = self.run_elevated_powershell(ps_cmd)
