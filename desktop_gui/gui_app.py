@@ -97,9 +97,11 @@ class PhotoBridgeGUI:
         )
         title_label.pack(anchor="w")
         
+        from app.paths import get_app_version
+        current_version = get_app_version()
         self.subtitle_label = tk.Label(
             header_frame, 
-            text="Local Network Photo Browser for iOS", 
+            text=f"Local Network Photo Browser for iOS (v{current_version})", 
             font=("Segoe UI", 10), 
             fg=TEXT_MUTED, 
             bg=BG_COLOR
@@ -205,6 +207,10 @@ class PhotoBridgeGUI:
         # View logs button
         self.btn_logs = make_flat_btn(btn_frame, "📋 View Server Logs", self.open_logs_window, CARD_BG, "#2c2c2e")
         self.btn_logs.pack(fill="x", pady=6)
+
+        # Check for updates button
+        self.btn_update = make_flat_btn(btn_frame, "🔄 Check for Updates", self.check_for_updates, CARD_BG, "#2c2c2e")
+        self.btn_update.pack(fill="x", pady=6)
 
         # Uninstall rule button
         self.btn_uninstall = make_flat_btn(btn_frame, "3. Remove Firewall Rule", self.run_uninstall, CARD_BG, "#2c2c2e")
@@ -678,6 +684,83 @@ class PhotoBridgeGUI:
             pass
 
         self.root.destroy()
+
+    def check_for_updates(self):
+        """Call GitHub Releases API, compare versions, and prompt if newer version is available."""
+        import json
+        import urllib.request
+        from urllib.error import URLError
+        import webbrowser
+        from app.paths import get_app_version
+        
+        current_version = get_app_version()
+        
+        # Disable button during check to prevent double click
+        self.btn_update.configure(state="disabled", text="Checking for updates...")
+        self.root.update_idletasks()
+        
+        def run_check():
+            try:
+                # Set a User-Agent header as GitHub API requires it
+                req = urllib.request.Request(
+                    "https://api.github.com/repos/animesh2411/my-photos-app/releases/latest",
+                    headers={"User-Agent": "PhotoBridge-ControlCenter"}
+                )
+                with urllib.request.urlopen(req, timeout=5) as response:
+                    data = json.loads(response.read().decode())
+                    
+                tag_name = data.get("tag_name", "") # e.g., "v1.0.3"
+                html_url = data.get("html_url", "https://github.com/animesh2411/my-photos-app/releases/latest")
+                
+                # Parse version strings to compare. E.g. clean "v1.0.3" to "1.0.3"
+                clean_tag = tag_name.lstrip('v').strip()
+                clean_current = current_version.lstrip('v').strip()
+                
+                # Compare versions using tuple representation of integers
+                try:
+                    tag_tuple = tuple(map(int, clean_tag.split('.')))
+                    curr_tuple = tuple(map(int, clean_current.split('.')))
+                except ValueError:
+                    # Fallback to simple string comparison if split/int conversion fails
+                    tag_tuple = (clean_tag,)
+                    curr_tuple = (clean_current,)
+                
+                if tag_tuple > curr_tuple:
+                    # New version available!
+                    self.root.after(0, lambda: messagebox.showinfo(
+                        "Update Available",
+                        f"A new version ({tag_name}) of PhotoBridge is available!\n\n"
+                        f"Current version: v{current_version}\n\n"
+                        f"Click OK to open the download page in your browser.",
+                        parent=self.root
+                    ))
+                    # Open browser with download page
+                    webbrowser.open(html_url)
+                else:
+                    self.root.after(0, lambda: messagebox.showinfo(
+                        "Up to Date",
+                        f"PhotoBridge is up to date!\n\n"
+                        f"Current version: v{current_version}\n"
+                        f"Latest version: {tag_name or 'N/A'}",
+                        parent=self.root
+                    ))
+            except URLError as e:
+                self.root.after(0, lambda: messagebox.showerror(
+                    "Connection Error",
+                    f"Failed to check for updates.\n\nError: {e.reason}",
+                    parent=self.root
+                ))
+            except Exception as e:
+                self.root.after(0, lambda: messagebox.showerror(
+                    "Error",
+                    f"An error occurred while checking for updates:\n\n{str(e)}",
+                    parent=self.root
+                ))
+            finally:
+                self.root.after(0, lambda: self.btn_update.configure(state="normal", text="🔄 Check for Updates"))
+                
+        # Run check in a background thread to keep GUI responsive
+        threading.Thread(target=run_check, daemon=True).start()
 
 if __name__ == "__main__":
     if getattr(sys, "frozen", False):

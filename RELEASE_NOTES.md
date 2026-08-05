@@ -4,7 +4,15 @@ This document tracks all version releases of PhotoBridge, highlighting new featu
 
 ---
 
-## [v1.0.3] — 2026-08-05 (Current Release)
+## [v1.0.4] — 2026-08-06 (Current Release)
+
+### 🚀 Update Checker
+- **Control Center Update Checking**: Added a **"Check for Updates"** button to the Control Center desktop GUI wrapper. When clicked, it executes a secure, asynchronous background request to the GitHub Releases API to verify if a newer version exists.
+- **Auto-Comparison & Prompt**: Compares the latest release tag on GitHub against the version baked into the local binary. If a newer build is detected, it prompts the user with an alert dialog and opens the official release download page in their default web browser.
+
+---
+
+## [v1.0.3] — 2026-08-05
 
 ### 🚀 Versioning & Mobile Enhancements
 - **Unified Version Management**: Consolidated version numbers into a single root `VERSION` file. Created `local-batch-files/sync_version.py` (which runs automatically during PyInstaller builds) to propagate versions to `pyproject.toml` and Inno Setup `PhotoBridge.iss`.
