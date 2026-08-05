@@ -56,7 +56,7 @@ This installer automatically configures the Windows Defender Firewall inbound ru
 The application features a fully automated versioning and update system designed to keep the backend, installer, service worker cache-busting, and update checkers in sync:
 
 1. **VERSION File**: The root `VERSION` file is the single source of truth containing the current version (e.g. `1.1.0`).
-2. **Dynamic Inno Setup Resolution**: The Inno Setup compiler script `installer/PhotoBridge.iss` uses preprocessor `FileOpen` and `FileReadLine` functions to read the version string directly from `VERSION` at compile-time, ensuring installer versions are always synchronized.
+2. **Dynamic Inno Setup Resolution**: The Inno Setup compiler script `installer/PhotoBridge.iss` uses preprocessor `FileOpen` and `FileRead` functions to read the version string directly from `VERSION` at compile-time, ensuring installer versions are always synchronized.
 3. **Version Synchronization Script**: Running `pyinstaller PhotoBridge.spec` triggers `local-batch-files/sync_version.py` before building. This automatically synchronizes:
    * The version in `pyproject.toml` (`version = "..."`).
 4. **Dynamic Cache-Busting Service Worker**:

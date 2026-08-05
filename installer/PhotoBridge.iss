@@ -6,7 +6,7 @@
 
 #define MyAppName "PhotoBridge"
 #define FileHandle FileOpen("..\VERSION")
-#define MyAppVersion Trim(FileReadLine(FileHandle))
+#define MyAppVersion Trim(FileRead(FileHandle))
 #expr FileClose(FileHandle)
 #define MyAppPublisher "PhotoBridge"
 #define MyAppURL "https://github.com/animesh2411/my-photos-app"
