@@ -26,24 +26,35 @@ else:
     if backend_path not in sys.path:
         sys.path.insert(0, backend_path)
 
-# Design Tokens (Harmonious Dark Theme)
-BG_COLOR = "#000000"
-CARD_BG = "#1c1c1e"
-TEXT_COLOR = "#ffffff"
-TEXT_MUTED = "#8e8e93"
-BLUE_COLOR = "#0a84ff"
-BLUE_HOVER = "#359aff"
-RED_COLOR = "#ff453a"
-RED_HOVER = "#ff6961"
-GREEN_COLOR = "#30d158"
-YELLOW_COLOR = "#ffd60a"
-BORDER_COLOR = "#2c2c2e"
+# ───────────────────────────────────────────────────
+# Design Tokens — Premium Dark Navy Theme (v2)
+# ───────────────────────────────────────────────────
+BG_DEEP        = "#0b1929"
+SIDEBAR_BG     = "#091422"
+MAIN_BG        = "#0e1e35"
+CARD_BG        = "#132d4f"
+CARD_BORDER    = "#1c3d5e"
+TEXT_WHITE     = "#ffffff"
+TEXT_COLOR     = "#d4dde8"
+TEXT_MUTED     = "#5d7a96"
+GREEN_COLOR    = "#30d158"
+GREEN_BTN      = "#2dd464"
+GREEN_BTN_HVR  = "#28b857"
+RED_COLOR      = "#ff453a"
+YELLOW_COLOR   = "#ffd60a"
+BLUE_COLOR     = "#0a84ff"
+BTN_DARK_BG    = "#0f1d33"
+BTN_DARK_HVR   = "#162a45"
+DISABLED_BG    = "#1a2a3e"
+DISABLED_FG    = "#3d5570"
+ACCENT_BAR     = "#1478c8"
+
 
 class PhotoBridgeGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("PhotoBridge Control Center")
-        
+
         # Set window icon
         try:
             from app.paths import resource_path
@@ -53,180 +64,364 @@ class PhotoBridgeGUI:
         except Exception:
             pass
 
-        self.root.geometry("520x680")
-        self.root.configure(bg=BG_COLOR)
+        self.root.geometry("850x560")
+        self.root.configure(bg=BG_DEEP)
         self.root.resizable(True, True)
-        self.root.minsize(480, 600)
-        
-        # Center the window on screen
+        self.root.minsize(850, 560)
+
         self.center_window()
 
         self.server_process = None
         self.server_running = False
         self.firewall_active = False
 
+        # URL values for copy-to-clipboard
+        self.url_local = ""
+        self.url_phone = ""
+        self.url_easy = ""
+
+        # Track which bottom-left button is showing
+        self._showing_setup_btn = True
+
         self.create_widgets()
-        
+
         # Intercept window close to clean up background processes
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
-        
+
         # Start periodic status checker loop
         self.update_status_loop()
 
     def center_window(self):
         self.root.update_idletasks()
-        width = 520
-        height = 680
-        self.root.minsize(500, 640)
+        width = 850
+        height = 560
         x = (self.root.winfo_screenwidth() // 2) - (width // 2)
         y = (self.root.winfo_screenheight() // 2) - (height // 2)
         self.root.geometry(f"{width}x{height}+{x}+{y}")
 
+    # ──────────────────────────────────────────────
+    # Widget Construction
+    # ──────────────────────────────────────────────
     def create_widgets(self):
-        # 1. Header Section
-        header_frame = tk.Frame(self.root, bg=BG_COLOR, padx=20, pady=10)
-        header_frame.pack(fill="x")
-        header_frame.bind("<Configure>", self.on_configure_header)
-        
-        title_label = tk.Label(
-            header_frame, 
-            text="PhotoBridge", 
-            font=("Segoe UI", 18, "bold"), 
-            fg=TEXT_COLOR, 
-            bg=BG_COLOR
+        # ═══════════════════════════════════════════
+        # LEFT SIDEBAR
+        # ═══════════════════════════════════════════
+        sidebar = tk.Frame(self.root, bg=SIDEBAR_BG, width=165)
+        sidebar.pack(side="left", fill="y")
+        sidebar.pack_propagate(False)
+
+        # ── Power Icon ──
+        power_pad = tk.Frame(sidebar, bg=SIDEBAR_BG)
+        power_pad.pack(fill="x", pady=(24, 14))
+
+        self.power_canvas = tk.Canvas(
+            power_pad, width=56, height=56,
+            bg=SIDEBAR_BG, highlightthickness=0
         )
-        title_label.pack(anchor="w")
-        
-        from app.paths import get_app_version
-        current_version = get_app_version()
-        self.subtitle_label = tk.Label(
-            header_frame, 
-            text=f"Local Network Photo Browser for iOS (v{current_version})", 
-            font=("Segoe UI", 10), 
-            fg=TEXT_MUTED, 
-            bg=BG_COLOR
+        self.power_canvas.pack(anchor="center")
+
+        self.power_circle = self.power_canvas.create_oval(
+            8, 8, 48, 48, outline=GREEN_COLOR, width=2.5
         )
-        self.subtitle_label.pack(anchor="w")
+        self.power_line = self.power_canvas.create_line(
+            28, 4, 28, 24, fill=GREEN_COLOR, width=2.5
+        )
 
-        # 2. Status Dashboard Card
-        self.status_card = tk.Frame(self.root, bg=CARD_BG, bd=1, highlightbackground=BORDER_COLOR, highlightthickness=1)
-        self.status_card.pack(fill="both", expand=True, padx=20, pady=5)
-        
-        # Inner padding frame
-        self.status_inner = tk.Frame(self.status_card, bg=CARD_BG, padx=15, pady=15)
-        self.status_inner.pack(fill="both", expand=True)
-        self.status_inner.bind("<Configure>", self.on_configure_status_inner)
+        # ── Server Status ──
+        srv_frame = tk.Frame(sidebar, bg=SIDEBAR_BG, padx=16)
+        srv_frame.pack(fill="x", pady=(4, 0))
 
-        # Firewall status line
-        fw_title = tk.Label(self.status_inner, text="Windows Firewall Inbound Rule", font=("Segoe UI", 9), fg=TEXT_MUTED, bg=CARD_BG)
-        fw_title.pack(anchor="w", pady=(0, 2))
-        
-        self.fw_val = tk.Label(self.status_inner, text="Checking...", font=("Segoe UI", 11, "bold"), fg=YELLOW_COLOR, bg=CARD_BG)
-        self.fw_val.pack(anchor="w", pady=(0, 12))
+        srv_dot_row = tk.Frame(srv_frame, bg=SIDEBAR_BG)
+        srv_dot_row.pack(anchor="w")
 
-        # Server status line
-        srv_title = tk.Label(self.status_inner, text="PhotoBridge Server Status", font=("Segoe UI", 9), fg=TEXT_MUTED, bg=CARD_BG)
-        srv_title.pack(anchor="w", pady=(0, 2))
-        
-        self.srv_val = tk.Label(self.status_inner, text="Stopped", font=("Segoe UI", 11, "bold"), fg=RED_COLOR, bg=CARD_BG)
-        self.srv_val.pack(anchor="w", pady=(0, 12))
+        self.srv_dot = tk.Canvas(
+            srv_dot_row, width=10, height=10,
+            bg=SIDEBAR_BG, highlightthickness=0
+        )
+        self.srv_dot.pack(side="left", padx=(0, 6), pady=3)
+        self.srv_dot_id = self.srv_dot.create_oval(1, 1, 9, 9, fill=RED_COLOR, outline="")
 
-        # Photos folder line
-        dir_title = tk.Label(self.status_inner, text="Photos Folder Directory", font=("Segoe UI", 9), fg=TEXT_MUTED, bg=CARD_BG)
-        dir_title.pack(anchor="w", pady=(0, 2))
+        tk.Label(
+            srv_dot_row, text="Server Status:",
+            font=("Segoe UI", 8), fg=TEXT_MUTED, bg=SIDEBAR_BG
+        ).pack(side="left")
 
-        # Horizontal row containing the folder path and a Change button
-        dir_row = tk.Frame(self.status_inner, bg=CARD_BG)
-        dir_row.pack(anchor="w", fill="x", pady=(0, 12))
+        self.srv_val = tk.Label(
+            srv_frame, text="Stopped",
+            font=("Segoe UI", 9, "bold"), fg=RED_COLOR,
+            bg=SIDEBAR_BG, anchor="w"
+        )
+        self.srv_val.pack(anchor="w", padx=(16, 0))
 
-        self.dir_val = tk.Label(dir_row, text="Not Configured", font=("Segoe UI", 10, "bold"), fg=TEXT_COLOR, bg=CARD_BG, justify="left", anchor="w")
+        # ── Firewall Status ──
+        fw_frame = tk.Frame(sidebar, bg=SIDEBAR_BG, padx=16)
+        fw_frame.pack(fill="x", pady=(12, 0))
+
+        fw_dot_row = tk.Frame(fw_frame, bg=SIDEBAR_BG)
+        fw_dot_row.pack(anchor="w")
+
+        self.fw_dot = tk.Canvas(
+            fw_dot_row, width=10, height=10,
+            bg=SIDEBAR_BG, highlightthickness=0
+        )
+        self.fw_dot.pack(side="left", padx=(0, 6), pady=3)
+        self.fw_dot_id = self.fw_dot.create_oval(1, 1, 9, 9, fill=YELLOW_COLOR, outline="")
+
+        tk.Label(
+            fw_dot_row, text="Firewall Rule:",
+            font=("Segoe UI", 8), fg=TEXT_MUTED, bg=SIDEBAR_BG
+        ).pack(side="left")
+
+        self.fw_val = tk.Label(
+            fw_frame, text="Checking...",
+            font=("Segoe UI", 9, "bold"), fg=YELLOW_COLOR,
+            bg=SIDEBAR_BG, anchor="w"
+        )
+        self.fw_val.pack(anchor="w", padx=(16, 0))
+
+        # ── Spacer ──
+        tk.Frame(sidebar, bg=SIDEBAR_BG).pack(fill="both", expand=True)
+
+        # ── Sidebar Bottom Buttons ──
+        sidebar_btns = tk.Frame(sidebar, bg=SIDEBAR_BG, padx=8, pady=12)
+        sidebar_btns.pack(fill="x", side="bottom")
+
+        # Check for Updates (with left accent bar)
+        upd_wrap = tk.Frame(sidebar_btns, bg=ACCENT_BAR)
+        upd_wrap.pack(fill="x", pady=(0, 6))
+
+        self.btn_update = tk.Button(
+            upd_wrap, text="\u21bb  Check for Updates",
+            command=self.check_for_updates,
+            bg=BTN_DARK_BG, fg=TEXT_COLOR,
+            activebackground=BTN_DARK_HVR, activeforeground=TEXT_WHITE,
+            font=("Segoe UI", 8), bd=0, relief="flat",
+            cursor="hand2", pady=7, padx=10, anchor="w"
+        )
+        self.btn_update.pack(fill="both", expand=True, padx=(3, 0))
+        self.btn_update.bind("<Enter>", lambda e: self.btn_update.configure(bg=BTN_DARK_HVR) if str(self.btn_update["state"]) != "disabled" else None)
+        self.btn_update.bind("<Leave>", lambda e: self.btn_update.configure(bg=BTN_DARK_BG) if str(self.btn_update["state"]) != "disabled" else None)
+
+        # View Server Logs (with left accent bar)
+        log_wrap = tk.Frame(sidebar_btns, bg=ACCENT_BAR)
+        log_wrap.pack(fill="x")
+
+        self.btn_logs = tk.Button(
+            log_wrap, text="View Server Logs",
+            command=self.open_logs_window,
+            bg=BTN_DARK_BG, fg=TEXT_COLOR,
+            activebackground=BTN_DARK_HVR, activeforeground=TEXT_WHITE,
+            font=("Segoe UI", 8), bd=0, relief="flat",
+            cursor="hand2", pady=7, padx=10, anchor="w"
+        )
+        self.btn_logs.pack(fill="both", expand=True, padx=(3, 0))
+        self.btn_logs.bind("<Enter>", lambda e: self.btn_logs.configure(bg=BTN_DARK_HVR))
+        self.btn_logs.bind("<Leave>", lambda e: self.btn_logs.configure(bg=BTN_DARK_BG))
+
+        # ═══════════════════════════════════════════
+        # RIGHT MAIN CONTENT AREA
+        # ═══════════════════════════════════════════
+        main_frame = tk.Frame(self.root, bg=MAIN_BG)
+        main_frame.pack(side="left", fill="both", expand=True)
+
+        content = tk.Frame(main_frame, bg=MAIN_BG, padx=24, pady=18)
+        content.pack(fill="both", expand=True)
+
+        # ── Photos Folder Directory Card ──
+        photos_card = tk.Frame(
+            content, bg=CARD_BG,
+            highlightbackground=CARD_BORDER, highlightthickness=1
+        )
+        photos_card.pack(fill="x", pady=(0, 14))
+
+        photos_inner = tk.Frame(photos_card, bg=CARD_BG, padx=20, pady=16)
+        photos_inner.pack(fill="x")
+
+        tk.Label(
+            photos_inner, text="Photos Folder Directory",
+            font=("Segoe UI", 14, "bold"), fg=TEXT_WHITE, bg=CARD_BG
+        ).pack(anchor="w", pady=(0, 12))
+
+        dir_row = tk.Frame(photos_inner, bg=CARD_BG)
+        dir_row.pack(fill="x")
+        dir_row.bind("<Configure>", self._on_dir_row_configure)
+
+        self.dir_val = tk.Label(
+            dir_row, text="Not Configured",
+            font=("Segoe UI", 10), fg=TEXT_COLOR, bg=CARD_BG,
+            anchor="w", justify="left"
+        )
         self.dir_val.pack(side="left", fill="x", expand=True)
 
         self.btn_change_dir = tk.Button(
-            dir_row,
-            text="Change...",
+            dir_row, text="Change",
             command=self.choose_directory,
-            bg=BORDER_COLOR,
-            fg=TEXT_COLOR,
-            activebackground="#3a3a3c",
-            activeforeground=TEXT_COLOR,
-            font=("Segoe UI", 8, "bold"),
-            bd=0,
-            relief="flat",
-            padx=8,
-            pady=2,
-            cursor="hand2"
+            bg=BTN_DARK_BG, fg=TEXT_COLOR,
+            activebackground=BTN_DARK_HVR, activeforeground=TEXT_WHITE,
+            font=("Segoe UI", 9, "bold"), bd=1, relief="solid",
+            padx=18, pady=5, cursor="hand2",
+            highlightbackground=CARD_BORDER
         )
-        self.btn_change_dir.pack(side="right", padx=(10, 0))
-        self.btn_change_dir.bind("<Enter>", lambda e: self.btn_change_dir.configure(bg="#3a3a3c"))
-        self.btn_change_dir.bind("<Leave>", lambda e: self.btn_change_dir.configure(bg=BORDER_COLOR))
+        self.btn_change_dir.pack(side="right", padx=(12, 0))
+        self.btn_change_dir.bind("<Enter>", lambda e: self.btn_change_dir.configure(bg=BTN_DARK_HVR))
+        self.btn_change_dir.bind("<Leave>", lambda e: self.btn_change_dir.configure(bg=BTN_DARK_BG))
 
-        # Connection URLs Info
-        self.url_label = tk.Label(
-            self.status_inner, 
-            text="Launch the server to get local Wi-Fi addresses.", 
-            font=("Segoe UI", 9, "italic"), 
-            fg=TEXT_MUTED, 
-            bg=CARD_BG,
-            justify="left"
+        # ── Connection URLs Card ──
+        urls_card = tk.Frame(
+            content, bg=CARD_BG,
+            highlightbackground=CARD_BORDER, highlightthickness=1
         )
-        self.url_label.pack(anchor="w", fill="x", pady=(8, 0))
+        urls_card.pack(fill="x", pady=(0, 14))
 
-        # 3. Control Panel Buttons Frame (anchored to bottom)
-        btn_frame = tk.Frame(self.root, bg=BG_COLOR, padx=20, pady=10)
-        btn_frame.pack(fill="x", side="bottom")
+        urls_inner = tk.Frame(urls_card, bg=CARD_BG, padx=20, pady=16)
+        urls_inner.pack(fill="x")
 
-        # Custom Hover Action Buttons Helper
-        def make_flat_btn(parent, text, command, bg_color, hover_color):
-            btn = tk.Button(
-                parent, 
-                text=text, 
-                command=command,
-                bg=bg_color, 
-                fg="#ffffff", 
-                activebackground=hover_color, 
-                activeforeground="#ffffff",
-                font=("Segoe UI", 10, "bold"),
-                bd=0, 
-                relief="flat", 
-                cursor="hand2",
-                pady=8
-            )
-            btn.bind("<Enter>", lambda e: btn.configure(bg=hover_color) if btn["state"] != "disabled" else None)
-            btn.bind("<Leave>", lambda e: btn.configure(bg=bg_color) if btn["state"] != "disabled" else None)
-            return btn
+        tk.Label(
+            urls_inner, text="Connection URLs",
+            font=("Segoe UI", 14, "bold"), fg=TEXT_WHITE, bg=CARD_BG
+        ).pack(anchor="w", pady=(0, 12))
 
-        # Setup rule button
-        self.btn_setup = make_flat_btn(btn_frame, "1. Configure Firewall Rule (One-Time)", self.run_setup, BLUE_COLOR, BLUE_HOVER)
-        self.btn_setup.pack(fill="x", pady=6)
+        # Placeholder text (visible when server is off)
+        self.urls_placeholder = tk.Label(
+            urls_inner,
+            text="Launch the server to get local Wi\u2011Fi addresses.",
+            font=("Segoe UI", 9, "italic"), fg=TEXT_MUTED, bg=CARD_BG,
+            anchor="w", justify="left"
+        )
+        self.urls_placeholder.pack(anchor="w", fill="x")
 
-        # Run server button
-        self.btn_run = make_flat_btn(btn_frame, "2. Start PhotoBridge Server", self.toggle_server, GREEN_COLOR, "#34c759")
-        self.btn_run.pack(fill="x", pady=6)
+        # URL rows frame (visible when server is running)
+        self.urls_rows_frame = tk.Frame(urls_inner, bg=CARD_BG)
+        # Not packed yet — shown by on_server_started
 
-        # View logs button
-        self.btn_logs = make_flat_btn(btn_frame, "📋 View Server Logs", self.open_logs_window, CARD_BG, "#2c2c2e")
-        self.btn_logs.pack(fill="x", pady=6)
+        self._make_url_row(self.urls_rows_frame, "Local:", 0)
+        self._make_url_row(self.urls_rows_frame, "Phone:", 1)
+        self._make_url_row(self.urls_rows_frame, "Easy:", 2)
 
-        # Check for updates button
-        self.btn_update = make_flat_btn(btn_frame, "🔄 Check for Updates", self.check_for_updates, CARD_BG, "#2c2c2e")
-        self.btn_update.pack(fill="x", pady=6)
+        # Spacer to push bottom bar down
+        tk.Frame(content, bg=MAIN_BG).pack(fill="both", expand=True)
 
-        # Uninstall rule button
-        self.btn_uninstall = make_flat_btn(btn_frame, "3. Remove Firewall Rule", self.run_uninstall, CARD_BG, "#2c2c2e")
-        self.btn_uninstall.pack(fill="x", pady=6)
+        # ── Bottom Action Bar ──
+        bottom_bar = tk.Frame(main_frame, bg=MAIN_BG, padx=24, pady=14)
+        bottom_bar.pack(fill="x", side="bottom")
 
-    def on_configure_header(self, event):
-        wrap_width = event.width - 40
-        if wrap_width > 100:
-            self.subtitle_label.configure(wraplength=wrap_width)
+        # Left button area (setup / uninstall — only one shown at a time)
+        self.left_btn_area = tk.Frame(bottom_bar, bg=MAIN_BG)
+        self.left_btn_area.pack(side="left")
 
-    def on_configure_status_inner(self, event):
-        wrap_width = event.width - 30
-        if wrap_width > 100:
-            self.url_label.configure(wraplength=wrap_width)
-            self.dir_val.configure(wraplength=wrap_width - 80)
+        self.btn_setup = tk.Button(
+            self.left_btn_area, text="\U0001f6e1  Configure Firewall Rule",
+            command=self.run_setup,
+            bg=BTN_DARK_BG, fg=TEXT_COLOR,
+            activebackground=BTN_DARK_HVR, activeforeground=TEXT_WHITE,
+            font=("Segoe UI", 9, "bold"), bd=1, relief="solid",
+            cursor="hand2", padx=14, pady=9,
+            highlightbackground=CARD_BORDER
+        )
+        self.btn_setup.pack(fill="x")
+        self.btn_setup.bind("<Enter>", lambda e: self.btn_setup.configure(bg=BTN_DARK_HVR) if str(self.btn_setup["state"]) != "disabled" else None)
+        self.btn_setup.bind("<Leave>", lambda e: self.btn_setup.configure(bg=BTN_DARK_BG) if str(self.btn_setup["state"]) != "disabled" else None)
 
+        self.btn_uninstall = tk.Button(
+            self.left_btn_area, text="\U0001f5d1  Remove Firewall Rule",
+            command=self.run_uninstall,
+            bg=BTN_DARK_BG, fg=TEXT_COLOR,
+            activebackground=BTN_DARK_HVR, activeforeground=TEXT_WHITE,
+            font=("Segoe UI", 9, "bold"), bd=1, relief="solid",
+            cursor="hand2", padx=14, pady=9,
+            highlightbackground=CARD_BORDER
+        )
+        # Not packed — shown by update_status_loop when firewall is active
+        self.btn_uninstall.bind("<Enter>", lambda e: self.btn_uninstall.configure(bg=BTN_DARK_HVR) if str(self.btn_uninstall["state"]) != "disabled" else None)
+        self.btn_uninstall.bind("<Leave>", lambda e: self.btn_uninstall.configure(bg=BTN_DARK_BG) if str(self.btn_uninstall["state"]) != "disabled" else None)
+
+        # Start / Stop server button (right side, large green)
+        self.btn_run = tk.Button(
+            bottom_bar, text="\u25b6  Start PhotoBridge Server",
+            command=self.toggle_server,
+            bg=GREEN_BTN, fg="#0a1628",
+            activebackground=GREEN_BTN_HVR, activeforeground="#0a1628",
+            font=("Segoe UI", 10, "bold"), bd=0, relief="flat",
+            cursor="hand2", padx=24, pady=9
+        )
+        self.btn_run.pack(side="right", fill="x", expand=True, padx=(14, 0))
+        self.btn_run.bind("<Enter>", lambda e: self.btn_run.configure(bg=GREEN_BTN_HVR) if str(self.btn_run["state"]) != "disabled" else None)
+        self.btn_run.bind("<Leave>", lambda e: self._restore_run_btn_bg())
+
+    # ──────────────────────────────────────────────
+    # Widget Helpers
+    # ──────────────────────────────────────────────
+    def _make_url_row(self, parent, label_text, index):
+        """Build a single URL row inside the urls_rows_frame."""
+        if index > 0:
+            tk.Frame(parent, bg=CARD_BORDER, height=1).pack(fill="x", pady=4)
+
+        row = tk.Frame(parent, bg=CARD_BG)
+        row.pack(fill="x", pady=2)
+
+        tk.Label(
+            row, text=label_text, font=("Segoe UI", 10),
+            fg=TEXT_MUTED, bg=CARD_BG, width=7, anchor="w"
+        ).pack(side="left")
+
+        url_lbl = tk.Label(
+            row, text="\u2014", font=("Segoe UI", 10),
+            fg=TEXT_COLOR, bg=CARD_BG, anchor="w"
+        )
+        url_lbl.pack(side="left", fill="x", expand=True, padx=(4, 0))
+
+        copy_btn = tk.Button(
+            row, text="\u29c9", font=("Segoe UI", 12),
+            bg=CARD_BG, fg=TEXT_MUTED,
+            activebackground=CARD_BORDER, activeforeground=TEXT_WHITE,
+            bd=0, relief="flat", cursor="hand2", padx=6, pady=0
+        )
+        copy_btn.pack(side="right")
+        copy_btn.bind("<Enter>", lambda e: copy_btn.configure(fg=TEXT_WHITE))
+        copy_btn.bind("<Leave>", lambda e: copy_btn.configure(fg=TEXT_MUTED))
+
+        if index == 0:
+            self.url_local_lbl = url_lbl
+            copy_btn.configure(command=lambda: self.copy_to_clipboard(self.url_local))
+        elif index == 1:
+            self.url_phone_lbl = url_lbl
+            copy_btn.configure(command=lambda: self.copy_to_clipboard(self.url_phone))
+        else:
+            self.url_easy_lbl = url_lbl
+            copy_btn.configure(command=lambda: self.copy_to_clipboard(self.url_easy))
+
+    def copy_to_clipboard(self, text):
+        """Copy text to the system clipboard using tkinter's built-in API."""
+        if text:
+            self.root.clipboard_clear()
+            self.root.clipboard_append(text)
+
+    def _on_dir_row_configure(self, event):
+        """Adjust wraplength for directory label when the row resizes."""
+        wrap_w = event.width - 110
+        if wrap_w > 100:
+            self.dir_val.configure(wraplength=wrap_w)
+
+    def _restore_run_btn_bg(self):
+        """Reset the run button colour on mouse leave."""
+        if str(self.btn_run["state"]) == "disabled":
+            return
+        self.btn_run.configure(bg=GREEN_BTN)
+
+    def _swap_left_btn(self, show_setup):
+        """Toggle the left bottom-bar button between Configure and Remove."""
+        if show_setup and not self._showing_setup_btn:
+            self.btn_uninstall.pack_forget()
+            self.btn_setup.pack(fill="x")
+            self._showing_setup_btn = True
+        elif not show_setup and self._showing_setup_btn:
+            self.btn_setup.pack_forget()
+            self.btn_uninstall.pack(fill="x")
+            self._showing_setup_btn = False
+
+    # ──────────────────────────────────────────────
+    # Core logic methods
+    # ──────────────────────────────────────────────
     def check_firewall(self) -> bool:
         """Query firewall database for Port 8000 rule using netsh (non-admin friendly)."""
         try:
@@ -259,21 +454,35 @@ class PhotoBridgeGUI:
 
         # Update Firewall Status GUI
         if self.firewall_active:
-            self.fw_val.configure(text="ACTIVE (Port 8000)", fg=GREEN_COLOR)
-            self.btn_setup.configure(state="disabled", text="1. Configured Successfully ✓", bg=BORDER_COLOR)
-            self.btn_uninstall.configure(state="normal", bg=CARD_BG)
+            self.fw_val.configure(text="Active", fg=GREEN_COLOR)
+            self.fw_dot.itemconfigure(self.fw_dot_id, fill=GREEN_COLOR)
+
+            # Show Remove button, hide Configure button
+            self._swap_left_btn(show_setup=False)
+            self.btn_uninstall.configure(state="normal")
 
             # If server isn't running, run button is ready
             if not self.server_running:
-                self.btn_run.configure(state="normal", text="2. Start PhotoBridge Server", bg=GREEN_COLOR)
+                self.btn_run.configure(
+                    state="normal",
+                    text="\u25b6  Start PhotoBridge Server",
+                    bg=GREEN_BTN, fg="#0a1628"
+                )
         else:
-            self.fw_val.configure(text="MISSING (Inbound Blocked)", fg=YELLOW_COLOR)
-            self.btn_setup.configure(state="normal", text="1. Configure Firewall Rule (One-Time)", bg=BLUE_COLOR)
-            self.btn_uninstall.configure(state="disabled", bg=BORDER_COLOR)
+            self.fw_val.configure(text="Missing", fg=YELLOW_COLOR)
+            self.fw_dot.itemconfigure(self.fw_dot_id, fill=YELLOW_COLOR)
+
+            # Show Configure button, hide Remove button
+            self._swap_left_btn(show_setup=True)
+            self.btn_setup.configure(state="normal")
 
             # Server cannot be started safely without firewall rule
             if not self.server_running:
-                self.btn_run.configure(state="disabled", text="2. Start Server (Setup Firewall First)", bg=BORDER_COLOR)
+                self.btn_run.configure(
+                    state="disabled",
+                    text="Start Server (Setup Firewall First)",
+                    bg=DISABLED_BG, fg=DISABLED_FG
+                )
 
         # Update photos directory label
         self.update_folder_label()
@@ -355,13 +564,13 @@ class PhotoBridgeGUI:
 
     def _on_dir_updated(self, selected_dir):
         """Called on main thread after a successful directory update."""
-        self.btn_change_dir.configure(state="normal", text="Change...")
+        self.btn_change_dir.configure(state="normal", text="Change")
         self.update_folder_label()
         messagebox.showinfo("Success", f"Photos folder updated:\n{selected_dir}")
 
     def _on_dir_update_failed(self, error_msg):
         """Called on main thread after a failed directory update."""
-        self.btn_change_dir.configure(state="normal", text="Change...")
+        self.btn_change_dir.configure(state="normal", text="Change")
         messagebox.showerror("Error", f"Failed to update folder:\n{error_msg}")
 
     def run_elevated_powershell(self, ps_command: str) -> bool:
@@ -392,7 +601,7 @@ class PhotoBridgeGUI:
             success = self.run_elevated_powershell(ps_cmd)
             if not success:
                 messagebox.showerror("Error", "Failed to configure firewall: Permission denied or execution failed.")
-        
+
         threading.Thread(target=run, daemon=True).start()
 
     def run_uninstall(self):
@@ -412,7 +621,7 @@ class PhotoBridgeGUI:
             success = self.run_elevated_powershell(ps_cmd)
             if not success:
                 messagebox.showerror("Error", "Failed to remove firewall: Permission denied or execution failed.")
-        
+
         threading.Thread(target=run, daemon=True).start()
 
     def toggle_server(self):
@@ -420,8 +629,9 @@ class PhotoBridgeGUI:
         if self.server_running:
             # Stop the server
             self.srv_val.configure(text="Stopping...", fg=YELLOW_COLOR)
-            self.btn_run.configure(state="disabled")
-            
+            self.srv_dot.itemconfigure(self.srv_dot_id, fill=YELLOW_COLOR)
+            self.btn_run.configure(state="disabled", bg=DISABLED_BG, fg=DISABLED_FG)
+
             def stop():
                 try:
                     if hasattr(self, 'server_thread') and self.server_thread:
@@ -438,7 +648,7 @@ class PhotoBridgeGUI:
                 finally:
                     self.server_process = None
                     self.server_running = False
-                    
+
                     try:
                         from app.media import clear_thumb_cache
                         clear_thumb_cache()
@@ -447,13 +657,14 @@ class PhotoBridgeGUI:
 
                     # Run on main thread
                     self.root.after(0, self.on_server_stopped)
-            
+
             threading.Thread(target=stop, daemon=True).start()
         else:
             # Start the server
             self.srv_val.configure(text="Starting...", fg=YELLOW_COLOR)
-            self.btn_run.configure(state="disabled")
-            
+            self.srv_dot.itemconfigure(self.srv_dot_id, fill=YELLOW_COLOR)
+            self.btn_run.configure(state="disabled", bg=DISABLED_BG, fg=DISABLED_FG)
+
             def start():
                 try:
                     if getattr(sys, "frozen", False):
@@ -464,7 +675,7 @@ class PhotoBridgeGUI:
                         self.server_thread = UvicornServerThread("0.0.0.0", port)
                         self.server_thread.start()
                         time.sleep(1.5)
-                        
+
                         if self.server_thread.error:
                             self.server_running = False
                             self.server_thread = None
@@ -478,7 +689,7 @@ class PhotoBridgeGUI:
                         python_exe = os.path.join(".venv", "Scripts", "python.exe")
                         if not os.path.exists(python_exe):
                             python_exe = "python"
-                            
+
                         creationflags = 0
                         if sys.platform == "win32":
                             creationflags = subprocess.CREATE_NO_WINDOW
@@ -491,14 +702,14 @@ class PhotoBridgeGUI:
                             text=True,
                             creationflags=creationflags
                         )
-                        
+
                         # Start stdout/stderr drain threads to prevent OS buffer locks
                         threading.Thread(target=self.drain_stream, args=(self.server_process.stdout, "STDOUT"), daemon=True).start()
                         threading.Thread(target=self.drain_stream, args=(self.server_process.stderr, "STDERR"), daemon=True).start()
-                        
+
                         # Give it 1.5 seconds to initialize
                         time.sleep(1.5)
-                        
+
                         if self.server_process.poll() is not None:
                             # Process exited due to startup error
                             self.server_running = False
@@ -512,7 +723,7 @@ class PhotoBridgeGUI:
                     self.server_running = False
                     self.root.after(0, lambda: messagebox.showerror("Error", f"Failed to start server: {e}"))
                     self.root.after(0, self.on_server_stopped)
-            
+
             threading.Thread(target=start, daemon=True).start()
 
     def drain_stream(self, stream, prefix: str):
@@ -529,11 +740,22 @@ class PhotoBridgeGUI:
         except Exception:
             pass
 
+    # ──────────────────────────────────────────────
+    # Server state transitions
+    # ──────────────────────────────────────────────
     def on_server_started(self):
         """Update interface when server starts running."""
-        self.srv_val.configure(text="RUNNING", fg=GREEN_COLOR)
-        self.btn_run.configure(state="normal", text="2. Stop PhotoBridge Server", bg=RED_COLOR)
-        
+        self.srv_val.configure(text="Running", fg=GREEN_COLOR)
+        self.srv_dot.itemconfigure(self.srv_dot_id, fill=GREEN_COLOR)
+        self.power_canvas.itemconfigure(self.power_circle, outline=GREEN_COLOR)
+        self.power_canvas.itemconfigure(self.power_line, fill=GREEN_COLOR)
+
+        self.btn_run.configure(
+            state="normal",
+            text="\u25a0  Stop PhotoBridge Server",
+            bg=GREEN_BTN, fg="#0a1628"
+        )
+
         # Get LAN IP
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -551,43 +773,69 @@ class PhotoBridgeGUI:
         except Exception:
             hostname = "photobridge"
 
-        self.url_label.configure(
-            text=f"Local:   http://localhost:{port}\nPhone:  http://{lan_ip}:{port}   (same Wi-Fi)\nEasy:    http://{hostname}.local:{port}",
-            fg=TEXT_COLOR
-        )
-        # Lock uninstall button when server runs
-        self.btn_uninstall.configure(state="disabled", bg=BORDER_COLOR)
+        # Populate URL values and labels
+        self.url_local = f"http://localhost:{port}"
+        self.url_phone = f"http://{lan_ip}:{port}"
+        self.url_easy = f"http://{hostname}.local:{port}"
+
+        self.url_local_lbl.configure(text=self.url_local)
+        self.url_phone_lbl.configure(text=f"{self.url_phone}")
+        self.url_easy_lbl.configure(text=self.url_easy)
+
+        # Swap URL visibility
+        self.urls_placeholder.pack_forget()
+        self.urls_rows_frame.pack(fill="x")
+
+        # Lock uninstall button while server runs
+        self.btn_uninstall.configure(state="disabled")
 
     def on_server_stopped(self):
         """Update interface when server finishes stopping."""
         self.srv_val.configure(text="Stopped", fg=RED_COLOR)
-        self.btn_run.configure(state="normal", text="2. Start PhotoBridge Server", bg=GREEN_COLOR)
-        self.url_label.configure(
-            text="Server is offline.",
-            fg=TEXT_MUTED
-        )
-        if self.firewall_active:
-            self.btn_uninstall.configure(state="normal", bg=CARD_BG)
+        self.srv_dot.itemconfigure(self.srv_dot_id, fill=RED_COLOR)
+        self.power_canvas.itemconfigure(self.power_circle, outline=RED_COLOR)
+        self.power_canvas.itemconfigure(self.power_line, fill=RED_COLOR)
 
+        self.btn_run.configure(
+            state="normal",
+            text="\u25b6  Start PhotoBridge Server",
+            bg=GREEN_BTN, fg="#0a1628"
+        )
+
+        # Swap URL visibility
+        self.urls_rows_frame.pack_forget()
+        self.urls_placeholder.pack(anchor="w", fill="x")
+
+        # Clear stored URLs
+        self.url_local = ""
+        self.url_phone = ""
+        self.url_easy = ""
+
+        if self.firewall_active:
+            self.btn_uninstall.configure(state="normal")
+
+    # ──────────────────────────────────────────────
+    # Logs Window (themed)
+    # ──────────────────────────────────────────────
     def open_logs_window(self):
         """Open a live log viewer window in Tkinter."""
         log_win = tk.Toplevel(self.root)
         log_win.title("PhotoBridge Server Logs")
-        log_win.geometry("650x450")
-        log_win.configure(bg=BG_COLOR)
+        log_win.geometry("680x460")
+        log_win.configure(bg=BG_DEEP)
 
         # Header
         hdr = tk.Frame(log_win, bg=CARD_BG, padx=15, pady=10)
         hdr.pack(fill="x", side="top")
-        
-        lbl = tk.Label(hdr, text="📋 PhotoBridge Server Logs", font=("Segoe UI", 12, "bold"), fg="#ffffff", bg=CARD_BG)
+
+        lbl = tk.Label(hdr, text="\U0001f4cb PhotoBridge Server Logs", font=("Segoe UI", 12, "bold"), fg=TEXT_WHITE, bg=CARD_BG)
         lbl.pack(side="left")
 
         # Text Widget
         import tkinter.scrolledtext as st
         log_text = st.ScrolledText(
             log_win,
-            bg="#0d0d0d",
+            bg="#060e1a",
             fg="#d1d1d6",
             insertbackground="#ffffff",
             font=("Consolas", 10),
@@ -597,10 +845,10 @@ class PhotoBridgeGUI:
         )
         log_text.pack(fill="both", expand=True, padx=10, pady=10)
 
-        log_text.tag_config("INFO", foreground="#30d158")
-        log_text.tag_config("WARN", foreground="#ffd60a")
-        log_text.tag_config("ERROR", foreground="#ff453a")
-        log_text.tag_config("TIME", foreground="#636366")
+        log_text.tag_config("INFO", foreground=GREEN_COLOR)
+        log_text.tag_config("WARN", foreground=YELLOW_COLOR)
+        log_text.tag_config("ERROR", foreground=RED_COLOR)
+        log_text.tag_config("TIME", foreground="#4a6278")
 
         def fetch_logs():
             log_text.configure(state="normal")
@@ -627,10 +875,10 @@ class PhotoBridgeGUI:
             log_text.see(tk.END)
 
         # Action Buttons
-        btn_bar = tk.Frame(log_win, bg=BG_COLOR, padx=10, pady=8)
+        btn_bar = tk.Frame(log_win, bg=BG_DEEP, padx=10, pady=8)
         btn_bar.pack(fill="x", side="bottom")
 
-        btn_ref = tk.Button(btn_bar, text="🔄 Refresh", command=fetch_logs, bg=CARD_BG, fg="#ffffff", relief="flat", padx=10, pady=5)
+        btn_ref = tk.Button(btn_bar, text="\U0001f504 Refresh", command=fetch_logs, bg=CARD_BG, fg=TEXT_WHITE, relief="flat", padx=10, pady=5)
         btn_ref.pack(side="left", padx=5)
 
         def clear_logs_action():
@@ -641,7 +889,7 @@ class PhotoBridgeGUI:
             except Exception:
                 pass
 
-        btn_clr = tk.Button(btn_bar, text="🗑️ Clear Logs", command=clear_logs_action, bg=CARD_BG, fg="#ffffff", relief="flat", padx=10, pady=5)
+        btn_clr = tk.Button(btn_bar, text="\U0001f5d1\ufe0f Clear Logs", command=clear_logs_action, bg=CARD_BG, fg=TEXT_WHITE, relief="flat", padx=10, pady=5)
         btn_clr.pack(side="left", padx=5)
 
         win_active = True
@@ -663,6 +911,9 @@ class PhotoBridgeGUI:
         log_win.protocol("WM_DELETE_WINDOW", on_win_close)
         auto_update()
 
+    # ──────────────────────────────────────────────
+    # Cleanup & Updates
+    # ──────────────────────────────────────────────
     def on_closing(self):
         """Clean closure of application, terminating background server tasks & deleting .thumbcache."""
         if self.server_running:
@@ -692,13 +943,13 @@ class PhotoBridgeGUI:
         from urllib.error import URLError
         import webbrowser
         from app.paths import get_app_version
-        
+
         current_version = get_app_version()
-        
+
         # Disable button during check to prevent double click
-        self.btn_update.configure(state="disabled", text="Checking for updates...")
+        self.btn_update.configure(state="disabled", text="Checking...")
         self.root.update_idletasks()
-        
+
         def run_check():
             try:
                 # Set a User-Agent header as GitHub API requires it
@@ -708,14 +959,14 @@ class PhotoBridgeGUI:
                 )
                 with urllib.request.urlopen(req, timeout=5) as response:
                     data = json.loads(response.read().decode())
-                    
+
                 tag_name = data.get("tag_name", "") # e.g., "v1.0.3"
                 html_url = data.get("html_url", "https://github.com/animesh2411/my-photos-app/releases/latest")
-                
+
                 # Parse version strings to compare. E.g. clean "v1.0.3" to "1.0.3"
                 clean_tag = tag_name.lstrip('v').strip()
                 clean_current = current_version.lstrip('v').strip()
-                
+
                 # Compare versions using tuple representation of integers
                 try:
                     tag_tuple = tuple(map(int, clean_tag.split('.')))
@@ -724,7 +975,7 @@ class PhotoBridgeGUI:
                     # Fallback to simple string comparison if split/int conversion fails
                     tag_tuple = (clean_tag,)
                     curr_tuple = (clean_current,)
-                
+
                 if tag_tuple > curr_tuple:
                     # New version available!
                     self.root.after(0, lambda: messagebox.showinfo(
@@ -757,10 +1008,11 @@ class PhotoBridgeGUI:
                     parent=self.root
                 ))
             finally:
-                self.root.after(0, lambda: self.btn_update.configure(state="normal", text="🔄 Check for Updates"))
-                
+                self.root.after(0, lambda: self.btn_update.configure(state="normal", text="\u21bb  Check for Updates"))
+
         # Run check in a background thread to keep GUI responsive
         threading.Thread(target=run_check, daemon=True).start()
+
 
 if __name__ == "__main__":
     if getattr(sys, "frozen", False):
