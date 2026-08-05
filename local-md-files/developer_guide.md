@@ -51,18 +51,22 @@ This installer automatically configures the Windows Defender Firewall inbound ru
 
 ---
 
-## 🔄 Unified Version & Cache Management
+## 🔄 Unified Version, Cache, & Update Management
 
-The application features a fully automated versioning system designed to keep the backend, installer, and service worker cache-busting logic in sync:
+The application features a fully automated versioning and update system designed to keep the backend, installer, service worker cache-busting, and update checkers in sync:
 
-1. **VERSION File**: The root `VERSION` file is the single source of truth containing the current version (e.g. `1.0.3`).
-2. **Version Synchronization Script**: Running `pyinstaller PhotoBridge.spec` triggers `local-batch-files/sync_version.py` before building. This automatically updates:
+1. **VERSION File**: The root `VERSION` file is the single source of truth containing the current version (e.g. `1.1.0`).
+2. **Dynamic Inno Setup Resolution**: The Inno Setup compiler script `installer/PhotoBridge.iss` uses preprocessor `FileOpen` and `FileReadLine` functions to read the version string directly from `VERSION` at compile-time, ensuring installer versions are always synchronized.
+3. **Version Synchronization Script**: Running `pyinstaller PhotoBridge.spec` triggers `local-batch-files/sync_version.py` before building. This automatically synchronizes:
    * The version in `pyproject.toml` (`version = "..."`).
-   * The version in Inno Setup compiler script `installer/PhotoBridge.iss` (`#define MyAppVersion "..."`).
-3. **Dynamic Cache-Busting Service Worker**:
+4. **Dynamic Cache-Busting Service Worker**:
    * The backend FastAPI server loads the version dynamically at runtime from the bundled `VERSION` resource and exposes it via `/api/config`.
    * The frontend `app.js` reads this version and registers the service worker as `/sw.js?v=<version>`.
    * The service worker `sw.js` parses this query string and updates `CACHE_NAME` dynamically to force the browser to invalidate stale cached assets immediately upon version bump.
+5. **GUI Update Checker**:
+   * The Control Center GUI (`desktop_gui/gui_app.py`) features a **"Check for Updates"** action button.
+   * This button executes an asynchronous request to the GitHub Releases API (`https://api.github.com/repos/animesh2411/my-photos-app/releases/latest`) on a background thread.
+   * It extracts the latest release tag (e.g., `v1.1.0`), parses it into integer version tuples, and compares it against the local baked-in version. If a newer build is found, it alerts the user and opens the download release page in their default web browser.
 
 ---
 

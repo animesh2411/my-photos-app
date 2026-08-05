@@ -4,7 +4,17 @@ This document tracks all version releases of PhotoBridge, highlighting new featu
 
 ---
 
-## [v1.0.4] — 2026-08-06 (Current Release)
+## [v1.1.0] — 2026-08-06 (Current Release)
+
+### 🎨 Premium Control Center Redesign (v2)
+- **Split-Screen Dashboard Layout**: Re-architected the Tkinter desktop GUI into a professional split-pane layout featuring a dark navy theme (`BG_DEEP`, `SIDEBAR_BG`, `MAIN_BG`), a left navigation bar, and a right cards details panel.
+- **Glow Status Indicators**: Replaced basic status text with glowing, canvas-rendered status dots (Server Liveness, Firewall Protection Rule) that update instantly.
+- **One-Click URL Copying**: Integrated copy buttons with hover state feedback next to all connection URLs (Local, Wi-Fi IP, and Easy Hostname), allowing fast clipboard sharing.
+- **Interactive UI Feedback**: Refined hover transitions, custom power icon widgets, and responsive grid auto-wrapping for a premium user experience.
+
+---
+
+## [v1.0.4] — 2026-08-06
 
 ### 🚀 Update Checker
 - **Control Center Update Checking**: Added a **"Check for Updates"** button to the Control Center desktop GUI wrapper. When clicked, it executes a secure, asynchronous background request to the GitHub Releases API to verify if a newer version exists.

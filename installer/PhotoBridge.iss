@@ -5,7 +5,9 @@
 ; Requires:    Inno Setup 6+ (https://jrsoftware.org/isinfo.php)
 
 #define MyAppName "PhotoBridge"
-#define MyAppVersion "1.0.4"
+#define FileHandle FileOpen("..\VERSION")
+#define MyAppVersion Trim(FileReadLine(FileHandle))
+#expr FileClose(FileHandle)
 #define MyAppPublisher "PhotoBridge"
 #define MyAppURL "https://github.com/animesh2411/my-photos-app"
 #define MyAppExeName "PhotoBridge.exe"
@@ -31,6 +33,8 @@ WizardStyle=modern
 PrivilegesRequired=admin
 ; Minimum Windows 10
 MinVersion=10.0
+VersionInfoVersion={#MyAppVersion}
+VersionInfoProductVersion={#MyAppVersion}
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"

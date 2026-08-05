@@ -59,13 +59,14 @@ graph TD
 * **`app/media.py`**: Generates resized JPEG thumbnails, manages the disk cache (`.thumbcache/`), and handles range responses for video streaming.
 
 ### 2. Windows Desktop Control Center & Launchers
-* **`desktop_gui/gui_app.py`**: A native Tkinter desktop Control Center:
+* **`desktop_gui/gui_app.py`**: A native Tkinter desktop Control Center featuring a premium split-pane dark navy layout (v2):
   * **In-Process Monitor**: Spawns the server as a background thread and monitors thread liveness. If the thread crashes, it changes status indicators immediately to "Stopped".
-  * **mDNS Connection Display**: Resolves system hostname using Python's `socket` library to show the easy-to-remember `.local` bookmark address alongside the numeric IP.
+  * **mDNS Connection Display**: Resolves system hostname using Python's `socket` library to show the easy-to-remember `.local` bookmark address alongside the numeric IP, with one-click copy buttons next to all URLs.
   * **UAC Firewall Automation**: Employs the Win32 `ShellExecuteW` API with the `"runas"` verb to run administrative PowerShell firewall scripts invisibly, safely handling path and quote escaping.
   * **Live Log Viewer Window**: Displays real-time logs fetched directly from the relocated `app.log` file.
-* **`PhotoBridge.spec`**: Configures the PyInstaller compile steps, bundling assets, icon configurations, metadata exclusions, and windowless execution binaries.
-* **`installer/PhotoBridge.iss`**: Script for the Inno Setup compiler to generate the Windows installer. Automates adding/removing firewall rules.
+  * **Update Checker**: Dynamically checks the latest releases via the GitHub API asynchronously on a background thread.
+* **`PhotoBridge.spec`**: Configures the PyInstaller compile steps, bundling assets, icon configurations, metadata exclusions, and windowless execution binaries. Runs the version synchronizer script.
+* **`installer/PhotoBridge.iss`**: Script for the Inno Setup compiler to generate the Windows installer. Automates adding/removing firewall rules. Resolves the application version dynamically from the root `VERSION` file at compile-time using Inno Setup Preprocessor (ISPP).
 
 ### 3. Frontend Modules (PWA Shell / Vanilla CSS & JS)
 * **`frontend/index.html`**: Service template shell optimized for iOS Safari viewports (`viewport-fit=cover`).
