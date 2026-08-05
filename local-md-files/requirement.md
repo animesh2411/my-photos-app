@@ -287,9 +287,9 @@ so the phone can reach it over LAN.
 
 ## 9. README.md — must include
 
-1. Prerequisites: Python 3.11+ installed on Windows.
-2. `pip install -r requirements.txt`.
-3. How to run: Double-click `local-batch-files/run_control_center.bat` to launch the native desktop Control Center (runs without background console popups, supports one-time firewall setup, checks status, and starts/stops the server invisibly). Day-to-day console execution can also be started with `local-batch-files/run_app.bat` or `python run.py`.
+1. Prerequisites: Windows 10 or 11 host PC.
+2. Installer: Download and run the standalone `PhotoBridgeSetup.exe` installer from GitHub Releases.
+3. How to run: Launch the native desktop Control Center from the desktop shortcut to configure the firewall exceptions and start the in-process server.
 4. Dynamic LAN IP detection and startup banner instructions.
 5. How to open it on iPhone Safari, complete the one-time setup screen by entering the full path to an existing folder on the laptop (e.g. `C:\Users\you\Pictures`), and "Add to Home Screen".
 6. How to configure the Access PIN locally via the Windows desktop GUI sidebar to protect remote connections.

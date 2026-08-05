@@ -11,10 +11,14 @@ For high-level system details, see:
 ## 🛠️ Installation & Dependency Management
 
 ### 1. Development Mode (Running from Source)
-Set up Python dependencies in your virtual environment:
-```bash
-pip install -r requirements.txt
-```
+To run the project in development mode from source code:
+1. Set up Python dependencies in your virtual environment:
+   ```bash
+   pip install -r requirements.txt
+   ```
+2. Execute or double-click the developer-specific batch scripts:
+   * **`local-batch-files/run_control_center.bat`**: Launches the native Tkinter Control Center GUI (automatically creating a virtual environment and installing packages).
+   * **`local-batch-files/run_app.bat`**: Starts the FastAPI backend server in a console window.
 
 #### Key Dependencies:
 * **`fastapi`**: ASGI web framework serving our endpoints.

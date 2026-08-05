@@ -6,12 +6,13 @@ PhotoBridge is a lightweight, local web application that runs on a Windows host 
 
 ## 🚀 How to Start (Quick Run)
 
-1. **Download** or clone this project folder to your Windows laptop.
-2. **Double-click `run_control_center.bat`** in the `local-batch-files/` folder. This will automatically create a safe virtual environment and install all packages.
-3. In the PhotoBridge window:
-   * Click **`1. Configure Firewall Rule`** (One-Time Setup). Click **Yes** on the Windows UAC security prompt that appears. This automatically secures your Wi-Fi port for phone access.
-   * Click **`2. Start PhotoBridge Server`**.
-4. The dashboard will instantly display the Wi-Fi connection addresses for your phone:
+1. **Download the Installer**: Go to the [Releases](https://github.com/animesh2411/my-photos-app/releases) page on GitHub and download the latest `PhotoBridgeSetup.exe`.
+2. **Install**: Double-click the downloaded setup file to install the application. This will automatically set up a desktop shortcut.
+3. **Launch**: Open the **PhotoBridge** app from your desktop or Start Menu.
+4. **Configure & Start**:
+   * Click **Configure Firewall Rule** (One-Time Setup) to allow phone traffic. Click **Yes** on the Windows UAC prompt.
+   * Click **Start PhotoBridge Server**.
+5. The dashboard will instantly display the Wi-Fi connection addresses for your mobile devices:
    * **Numeric IP**: `Phone: http://192.168.1.8:8000`
    * **Easy Hostname**: `Easy: http://mylaptop.local:8000` (Bookmark this! It uses mDNS so it stays valid even if your numeric IP changes).
 
@@ -44,7 +45,7 @@ PhotoBridge is a lightweight, local web application that runs on a Windows host 
 * **🎥 Video Badging & Scrubbing**: Video tiles display an iOS Photos style glassmorphism video badge (`▶ VIDEO`). Fullscreen video player supports range scrubbing and instant first-frame preview.
 * **🧵 ThreadPool Offloaded Processing**: Fast API endpoints offload PIL decoding and EXIF reads to background worker threads, preventing event loop blocking.
 * **🛑 Request Cancellation Controller**: Aborts pending thumbnail downloads when switching tabs or clicking a photo, dedicating 100% pipeline to requested media.
-* **🧹 Automatic Cache Cleanup & Teardown**: `backend/.thumbcache/` is automatically purged on server shutdown/launch to keep laptop hard drives clean.
+* **🧹 Automatic Cache Cleanup & Teardown**: The thumbnail cache directory under `%LOCALAPPDATA%\PhotoBridge` is automatically managed and cleared on server shutdown/launch to keep laptop hard drives clean.
 * **📱 Strict Mobile Privacy**: Headers set to `Cache-Control: private, no-store, must-revalidate` — phone browsers are strictly forbidden from writing media to phone disk storage.
 * **🔴 Live Photos Support**: Paired images and video clips (e.g. `.HEIC` + `.MOV`) show a "LIVE" badge in the viewer. Touch-and-hold to play the clip.
 * **❤️ Mark Favorites**: Tap the heart button to save items to your favorites directory (saved locally).
@@ -54,8 +55,7 @@ PhotoBridge is a lightweight, local web application that runs on a Windows host 
 
 ## 💻 Requirements
 * **Windows 10 or 11** computer.
-* **iPhone** running iOS 12 or newer.
-* **Python 3.12 or later** (Only required for running from source code/development; not needed when using the standalone `PhotoBridgeSetup.exe` installer).
+* **Mobile device, tablet, or smart TV** running a modern web browser (e.g. Safari, Chrome, Firefox).
 
 ---
 
