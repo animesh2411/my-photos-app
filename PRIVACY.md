@@ -21,15 +21,33 @@ PhotoBridge does not collect, transmit, or store any personal data on external s
 | Data | Where it's stored | Leaves your network? |
 |---|---|---|
 | Photos & videos you browse | Read directly from the folder you configure on your own computer | No |
-| Optional Access PIN | Stored locally on your computer | No |
-| Favorites you mark | Stored locally on your computer | No |
-| Thumbnail cache | Stored locally (`backend/.thumbcache/`), automatically purged on server shutdown/launch | No |
+| Optional Access PIN | Stored locally as a salted PBKDF2-HMAC-SHA256 hash under `%LOCALAPPDATA%\PhotoBridge` — never in plain text | No |
+| Favorites you mark | Stored locally under `%LOCALAPPDATA%\PhotoBridge` | No |
+| App configuration (`config.json`) and logs (`app.log`) | Stored locally under `%LOCALAPPDATA%\PhotoBridge` | No |
+| Thumbnail cache | Stored locally under `%LOCALAPPDATA%\PhotoBridge`, automatically cleared on server shutdown/launch | No |
 
-## How your phone is treated
+PhotoBridge stores this data under your Windows user profile (`%LOCALAPPDATA%\PhotoBridge`) rather than inside the installation folder, so that it can write configuration, logs, and cache safely without needing elevated permissions to `Program Files`. This is a local filesystem location only — nothing in this folder is transmitted anywhere.
 
-When you connect a phone (or any other device) on your Wi-Fi network to PhotoBridge through a browser:
-- Server responses are sent with `Cache-Control: private, no-store, must-revalidate` headers, which instruct the connecting browser not to write any media to that device's local storage.
-- Access can optionally be restricted with a PIN that you set during first-time setup, stored only on the host computer.
+## Network access and firewall
+
+To let other devices on your Wi-Fi network reach PhotoBridge, the app requests a one-time Windows Firewall exception (via a UAC prompt) for:
+- **TCP port 8000** — the local web server that phones, tablets, TVs, and other laptops connect to.
+- **UDP port 5353** — used for mDNS, so the app can be reached at a friendly `http://<device>.local:8000` address instead of a numeric IP.
+
+Both exceptions are scoped to your **private network profile** only, are fully reversible from the Control Center, and are removed automatically on uninstall. These rules only allow inbound connections on your local network — they do not expose PhotoBridge to the public internet.
+
+## Access PIN and rate limiting
+
+If you choose to set an Access PIN from the Control Center sidebar:
+- It is never stored or transmitted in plain text — only a salted PBKDF2-HMAC-SHA256 hash is kept, locally, on your computer.
+- Repeated failed PIN attempts from the same device are automatically rate-limited, and that device is temporarily locked out after 5 failures.
+- The PIN can only be configured or changed directly from the host computer's Control Center — it cannot be set or reset remotely.
+
+## How connected devices are treated
+
+When you connect a phone, tablet, TV, or other device on your Wi-Fi network to PhotoBridge through a browser:
+- Server responses are sent with `Cache-Control: private, no-store, must-revalidate` headers, instructing the connecting browser not to write any media to that device's local storage.
+- Access can optionally be restricted with the PIN described above.
 - All access is limited to devices on the same local network as the host computer — PhotoBridge does not expose itself to the public internet.
 
 ## Children's privacy
