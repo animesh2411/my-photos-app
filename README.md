@@ -1,6 +1,8 @@
 # PhotoBridge — Cross-Platform Local Network Photo Browser
 
-PhotoBridge is a lightweight, local web application that runs on a Windows host laptop and allows any device (iPhones, Android phones, iPads, tablets, smart TVs, or other laptops) on the same Wi-Fi ne[...] 
+PhotoBridge is a lightweight, local web application that runs on a Windows host laptop and allows any device (iPhones, Android phones, iPads, tablets, smart TVs, or other laptops) on the same Wi-Fi network to browse and stream the host's photo/video folders. It is built as a highly responsive Progressive Web App (PWA) featuring an Apple Photos-style interface, requiring no cloud accounts, external internet connection, or complex setup.
+
+**Live on the Microsoft Store now:** https://aka.ms/AA132oh6
 
 ---
 
@@ -24,7 +26,7 @@ PhotoBridge is a lightweight, local web application that runs on a Windows host 
 2. Open **any web browser** (Safari, Chrome, Firefox, etc.) on your device and go to the easy hostname address shown in the desktop dashboard (e.g. `http://mylaptop.local:8000`).
 3. **Complete the setup wizard**:
    * Enter the path to the folder on your laptop you want to browse (e.g. `C:\Users\YourName\Pictures`).
-   * *(Note: To secure your connections, you can configure an **Access PIN** locally inside the Windows desktop GUI sidebar).* 
+   * *(Note: To secure your connections, you can configure an **Access PIN** locally inside the Windows desktop GUI sidebar).*
 4. **Add to Home Screen**:
     * Tap Safari's Share button (↗️) and select **Add to Home Screen**.
     * Launch PhotoBridge from your home screen for a premium, fullscreen app experience.
@@ -33,23 +35,23 @@ PhotoBridge is a lightweight, local web application that runs on a Windows host 
 
 ## ✨ Features
 
-* **📱 Universal Cross-Platform Compatibility**: Fully compatible with any modern browser. Open and browse photos on iPhones, iPads, Android phones/tablets, smart TVs, or other laptops on the W[...]
-* **📦 Standalone Packaging & Zero-Dependency Portability (No Python Needed!)**: Can be compiled into a standalone directory distribution (`PhotoBridge.exe`) and packaged into a one-click Windows in[...]
-* **🌐 mDNS Hostname Resolution & Diagnostics (`.local` URL)**: Exposes a persistent host-based address (e.g. `http://<your-device-name>.local:8000`) for easy bookmarking. Includes a built-in **Test[...]
-* **🛡️ Elevated Inbound Firewalling (Auto-Managed)**: The installer and Control Center automatically manage Windows Firewall exceptions for both TCP Port 8000 (app server) and UDP Port 5353 (mDNS[...]
-* **📂 User Data Relocation (Write-Safe)**: Stores configuration (`config.json`), log files (`app.log`), and thumbnail caches under `%LOCALAPPDATA%\PhotoBridge` instead of the project folder, comply[...]
-* **🎛️ Windows Control Center GUI**: Native desktop dashboard to check server status, configure/remove firewall rules, launch windowless servers, and inspect **live real-time server logs** (`📋[...]
+* **📱 Universal Cross-Platform Compatibility**: Fully compatible with any modern browser. Open and browse photos on iPhones, iPads, Android phones/tablets, smart TVs, or other laptops on the same Wi-Fi network.
+* **📦 Standalone Packaging & Zero-Dependency Portability (No Python Needed!)**: Can be compiled into a standalone directory distribution (`PhotoBridge.exe`) and packaged into a one-click Windows installer (`PhotoBridgeSetup.exe`). End users do not need Python or any development libraries installed to run the application.
+* **🌐 mDNS Hostname Resolution & Diagnostics (`.local` URL)**: Exposes a persistent host-based address (e.g. `http://<your-device-name>.local:8000`) for easy bookmarking. Includes a built-in **Test** diagnostics button in the Control Center to resolve and verify local hostname resolution issues asynchronously.
+* **🛡️ Elevated Inbound Firewalling (Auto-Managed)**: The installer and Control Center automatically manage Windows Firewall exceptions for both TCP Port 8000 (app server) and UDP Port 5353 (mDNS) on private Wi-Fi profiles, handling setup and clean removal on uninstall.
+* **📂 User Data Relocation (Write-Safe)**: Stores configuration (`config.json`), log files (`app.log`), and thumbnail caches under `%LOCALAPPDATA%\PhotoBridge` instead of the project folder, complying with Windows security policies and bypassing permission issues in `Program Files`.
+* **🎛️ Windows Control Center GUI**: Native desktop dashboard to check server status, configure/remove firewall rules, launch windowless servers, and inspect **live real-time server logs** (`📋 View Server Logs`).
 * **📸 Date-Grouped Grid**: Scroll through all photos grouped by capture date with smooth lazy-loading and shimmer placeholders.
 * **📂 Albums Grid & Cover Art**: Browse directory albums with automatic cover art selection (prioritizes image files over video clips) and persistent cover caching.
 * **🎥 Video Badging & Scrubbing**: Video tiles display an iOS Photos style glassmorphism video badge (`▶ VIDEO`). Fullscreen video player supports range scrubbing and instant first-frame preview.
 * **⚡ High-Performance Background Loading**: Engineered to decode heavy photos and EXIF data in the background, keeping the host laptop responsive and media loading fast.
 * **🚀 Instant Page Transitions**: Instantly cancels previous loading queues when switching albums, dedicating 100% network bandwidth to the media you are currently viewing.
-* **🧹 Automatic Cache Cleanup & Teardown**: The thumbnail cache directory under `%LOCALAPPDATA%\PhotoBridge` is automatically managed and cleared on server shutdown/launch to keep laptop hard drive[...]
-* **🔄 Real-Time Scan Progress Feedback**: Exposes a `/api/scan-status` polling API to show real-time progress indicators (`Scanning library... Found X files`) in the PWA client during recursive lib[...]
+* **🧹 Automatic Cache Cleanup & Teardown**: The thumbnail cache directory under `%LOCALAPPDATA%\PhotoBridge` is automatically managed and cleared on server shutdown/launch to keep laptop hard drives clean.
+* **🔄 Real-Time Scan Progress Feedback**: Exposes a `/api/scan-status` polling API to show real-time progress indicators (`Scanning library... Found X files`) in the PWA client during recursive library scans.
 * **📱 Strict Mobile Privacy**: Headers set to `Cache-Control: private, no-store, must-revalidate` — phone browsers are strictly forbidden from writing media to phone disk storage.
 * **🔴 Live Photos Support**: Paired images and video clips (e.g. `.HEIC` + `.MOV`) show a "LIVE" badge in the viewer. Touch-and-hold to play the clip.
 * **❤️ Mark Favorites**: Tap the heart button to save items to your favorites directory (saved locally).
-* **🔒 Localhost, Access PIN & Path Re-Validation Security**: Folder picker, settings, and PIN management can only be edited directly from the host laptop GUI. Access PINs are stored as secure, salt[...]
+* **🔒 Localhost, Access PIN & Path Re-Validation Security**: Folder picker, settings, and PIN management can only be edited directly from the host laptop GUI. Access PINs are stored as secure, salted PBKDF2-HMAC-SHA256 hashes, with thread-safe client IP rate limiting (locking out IPs after 5 failures). Performs dynamic per-request path validation checks to block access immediately if a photos drive is disconnected. Files are resolved via URL-safe base64 memory IDs.
 
 ---
 
